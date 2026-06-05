@@ -1,9 +1,3 @@
-# Blazin-IPTV-Player
-Fast Windows IPTV player for M3U, Xtream Codes, STB MAC, and Stalker Portal users. Bring your own legal IPTV playlist or account.
-
-<img width="964" height="663" alt="blazin-preview" src="https://github.com/user-attachments/assets/d3758ad1-1e30-4018-b16b-258858327ee0" />
-
-
 # BLAZIN IPTV Player
 
 **BLAZIN IPTV Player** is an all-in-one Windows IPTV player built for users who want speed, flexibility, and a clean desktop experience without being locked into one playlist type or one playback method.
@@ -16,7 +10,8 @@ Designed with a compact landscape footprint, BLAZIN IPTV Player is ideal for lap
 
 ## Preview
 
-![BLAZIN IPTV Player preview](screenshots/blazin-preview.gif)
+<img width="964" height="663" alt="blazin-preview" src="https://github.com/user-attachments/assets/d3758ad1-1e30-4018-b16b-258858327ee0" />
+
 
 ---
 
