@@ -14,7 +14,10 @@ Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**
 
 ## Preview
 
-<img width="892" height="586" alt="blazin-preview-HIGHEST-QUALITY" src="https://github.com/user-attachments/assets/6aedd9d6-cd52-4263-adc5-65617af352f4" />
+
+
+https://github.com/user-attachments/assets/f7ac2cfc-6625-43c4-97ab-c15eec476857
+
 
 
 ---
