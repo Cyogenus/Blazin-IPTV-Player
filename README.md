@@ -1,3 +1,4 @@
+<meta name="google-site-verification" content="LWgtpRUE3nSWllyeJzsmaGCQH8IcO0hYcLFxCS76ito" />
 # BLAZIN IPTV Player
 
 **BLAZIN IPTV Player** is an all-in-one Windows IPTV player built for users who want speed, flexibility, and a clean desktop experience without being locked into one playlist type or one playback method.
