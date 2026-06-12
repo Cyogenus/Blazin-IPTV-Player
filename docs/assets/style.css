@@ -66,6 +66,16 @@ a {
   letter-spacing: 0.3px;
 }
 
+
+.site-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 10px 30px rgba(255,122,24,0.25);
+  background: rgba(255,255,255,0.04);
+}
+
 .logo-mark {
   width: 42px;
   height: 42px;
