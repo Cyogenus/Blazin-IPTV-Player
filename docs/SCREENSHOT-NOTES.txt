@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Download BLAZIN IPTV Player for Windows - Microsoft Store IPTV Player</title>
-  <meta name="description" content="Download BLAZIN IPTV Player from the Microsoft Store. A Windows IPTV player for M3U, M3U Plus, Xtream Codes, STB MAC, Stalker Portal, EPG, and internal VLC playback.">
+  <title>M3U Plus Player for Windows - BLAZIN IPTV Player</title>
+  <meta name="description" content="BLAZIN IPTV Player supports compatible M3U Plus playlist URLs on Windows with Live TV, Movies, Series, EPG, and internal VLC playback when provided by the source.">
   <meta name="robots" content="index, follow, max-image-preview:large">
-  <link rel="canonical" href="https://cyogenus.github.io/Blazin-IPTV-Player/download.html">
+  <link rel="canonical" href="https://cyogenus.github.io/Blazin-IPTV-Player/m3u-plus-player-windows.html">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="shortcut icon" href="assets/favicon.ico">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <meta property="og:title" content="Download BLAZIN IPTV Player for Windows - Microsoft Store IPTV Player">
-  <meta property="og:description" content="Download BLAZIN IPTV Player from the Microsoft Store. A Windows IPTV player for M3U, M3U Plus, Xtream Codes, STB MAC, Stalker Portal, EPG, and internal VLC playback.">
+  <meta property="og:title" content="M3U Plus Player for Windows - BLAZIN IPTV Player">
+  <meta property="og:description" content="BLAZIN IPTV Player supports compatible M3U Plus playlist URLs on Windows with Live TV, Movies, Series, EPG, and internal VLC playback when provided by the source.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://cyogenus.github.io/Blazin-IPTV-Player/download.html">
+  <meta property="og:url" content="https://cyogenus.github.io/Blazin-IPTV-Player/m3u-plus-player-windows.html">
   <meta property="og:site_name" content="BLAZIN IPTV Player">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Download BLAZIN IPTV Player for Windows - Microsoft Store IPTV Player">
-  <meta name="twitter:description" content="Download BLAZIN IPTV Player from the Microsoft Store. A Windows IPTV player for M3U, M3U Plus, Xtream Codes, STB MAC, Stalker Portal, EPG, and internal VLC playback.">
+  <meta name="twitter:title" content="M3U Plus Player for Windows - BLAZIN IPTV Player">
+  <meta name="twitter:description" content="BLAZIN IPTV Player supports compatible M3U Plus playlist URLs on Windows with Live TV, Movies, Series, EPG, and internal VLC playback when provided by the source.">
   <link rel="stylesheet" href="assets/style.css">
   <script type="application/ld+json">
 [
@@ -64,16 +64,16 @@
 <main>
   <section class="page-title">
     <div class="container">
-      <div class="breadcrumb"><a href="index.html">Home</a> / Download BLAZIN IPTV Player for Windows</div>
-      <h1>Download BLAZIN IPTV Player for Windows</h1>
-      <p class="lead">Download BLAZIN IPTV Player from the Microsoft Store. A Windows IPTV player for M3U, M3U Plus, Xtream Codes, STB MAC, Stalker Portal, EPG, and internal VLC playback.</p>
+      <div class="breadcrumb"><a href="index.html">Home</a> / M3U Plus Player for Windows</div>
+      <h1>M3U Plus Player for Windows</h1>
+      <p class="lead">BLAZIN IPTV Player supports compatible M3U Plus playlist URLs on Windows with Live TV, Movies, Series, EPG, and internal VLC playback when provided by the source.</p>
       <div class="actions"><a class="btn primary" href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T">Download from Microsoft Store</a><a class="btn" href="screenshots.html">View Screenshots</a></div>
     </div>
   </section>
   <section class="section alt">
     <div class="container grid two">
       <div>
-        <h2>How BLAZIN supports Windows IPTV playback</h2>
+        <h2>How BLAZIN supports M3U Plus playlists</h2>
         <p>BLAZIN IPTV Player is designed for Windows users who want a fast, compact IPTV player for their own legal source. The app supports M3U, M3U Plus, Xtream Codes, STB MAC, and Stalker Portal sources when compatible.</p>
         <ol class="steps">
           <li><strong>Install BLAZIN IPTV Player.</strong><br>Download the app from the Microsoft Store.</li>

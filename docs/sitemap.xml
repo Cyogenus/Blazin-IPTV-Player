@@ -1,63 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/download.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/user-guide.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/m3u-player-windows.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/m3u-plus-player-windows.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/xtream-codes-player-windows.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/stb-mac-player-windows.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/stalker-portal-player-windows.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/iptv-player-with-epg.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/iptv-smarters-alternative-windows.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/faq.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://cyogenus.github.io/Blazin-IPTV-Player/legal-disclaimer.html</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-</urlset>
+Screenshot update notes
+
+This package adds a screenshots page and uses SEO-friendly image file names and alt text.
+
+The internal VLC player screenshot was sanitized by blurring the video content area so the website shows the player interface without displaying copyrighted video content.
+
+Upload the full docs folder to GitHub and keep GitHub Pages set to /docs.
