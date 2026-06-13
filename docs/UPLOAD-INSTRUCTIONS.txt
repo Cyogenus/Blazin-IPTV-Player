@@ -1,0 +1,28 @@
+Upload instructions
+
+Replace your full docs folder with this new docs folder.
+
+Make sure these files are uploaded to GitHub:
+
+- docs/assets/screenshots/blazin-iptv-player-live-tv-playlist-windows.png
+- docs/assets/screenshots/blazin-iptv-player-live-tv-epg-windows.png
+- docs/assets/screenshots/blazin-iptv-player-movies-tab-windows.png
+- docs/assets/screenshots/blazin-iptv-player-series-tab-windows.png
+- docs/assets/screenshots/blazin-iptv-player-xtream-codes-profile-windows.png
+- docs/assets/screenshots/blazin-iptv-player-stb-mac-stalker-profile-windows.png
+- docs/assets/screenshots/blazin-iptv-player-internal-vlc-player-windows.png
+- docs/assets/screenshots/blazin-iptv-player-about-window.png
+- docs/assets/screenshots/blazin-iptv-player-blue-theme-windows.png
+- docs/assets/screenshots/blazin-iptv-player-green-theme-windows.png
+- docs/assets/screenshots/blazin-iptv-player-brown-theme-windows.png
+- docs/assets/screenshots/blazin-iptv-player-dark-green-theme-windows.png
+
+Your robots.txt must look like this with separate lines:
+
+User-agent: *
+Allow: /
+
+Sitemap: https://cyogenus.github.io/Blazin-IPTV-Player/sitemap.xml
+
+If screenshots still do not load, check that GitHub has the folder:
+docs/assets/screenshots/
