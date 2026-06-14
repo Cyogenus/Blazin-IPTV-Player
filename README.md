@@ -7,10 +7,10 @@ Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**
 > **Now available on the Microsoft Store with a free 7-day trial.**
 >
 > [Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T)  
->
 
 > Try BLAZIN IPTV Player free for 7 days and see how fast your own IPTV playlist can load in a compact Windows desktop player.
-> <a href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T?referrer=appbadge&mode=full" target="_blank"  rel="noopener noreferrer">
+
+ <a href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T?referrer=appbadge&mode=full" target="_blank"  rel="noopener noreferrer">
 	<img src="https://get.microsoft.com/images/en-us%20light.svg" width="200"/>
 </a>
 
