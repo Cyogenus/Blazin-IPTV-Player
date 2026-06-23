@@ -1,5 +1,10 @@
 # BLAZIN IPTV Player
 
+<a href="https://apps.microsoft.com/detail/9nq5s0ffcn8t?referrer=appbadge&cid=windowsiptv.com&mode=full" target="_blank" rel="noopener noreferrer">
+  <img src="https://get.microsoft.com/images/en-us%20light.svg" alt="Download BLAZIN IPTV Player from the Microsoft Store" width="200">
+</a>
+
+
 **BLAZIN IPTV Player** is a compact Windows IPTV player for user-provided legal sources.
 
 Website: **https://windowsiptv.com**  

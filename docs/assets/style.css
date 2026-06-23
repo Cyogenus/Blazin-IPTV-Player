@@ -193,3 +193,104 @@ table.compare td { color:var(--muted); }
 .meta-pill { display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.12); border-radius:999px; padding:6px 10px; color:var(--muted); margin:0 8px 8px 0; font-size:.9rem; }
 .side-by-side { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
 @media (max-width:900px){.stat-row,.proof-grid,.side-by-side{grid-template-columns:1fr}.trial-strip{align-items:flex-start}}
+
+
+/* FAQ layout polish */
+.faq-section .content-narrow {
+  max-width: 980px;
+}
+
+.faq-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.faq-item {
+  border: 1px solid var(--border);
+  background: rgba(18,25,35,0.92);
+  border-radius: 16px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.16);
+}
+
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--text);
+  padding: 18px 52px 18px 20px;
+  position: relative;
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary::after {
+  content: "+";
+  position: absolute;
+  right: 20px;
+  top: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.faq-item[open] summary::after {
+  content: "−";
+}
+
+.faq-item p {
+  color: var(--muted);
+  margin: 0;
+  padding: 0 20px 20px;
+  line-height: 1.7;
+}
+
+.faq-item + .faq-item {
+  margin-top: 0;
+}
+
+/* Microsoft Store download badge */
+.store-with-badge {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.store-badge-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  line-height: 0;
+  border-radius: 14px;
+  transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+}
+
+.store-badge-link:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 12px 34px rgba(0,0,0,.28);
+}
+
+.store-badge-link img {
+  display: block;
+  width: 200px;
+  max-width: min(200px, 100%);
+  height: auto;
+}
+
+@media (max-width: 560px) {
+  .store-badge-link,
+  .store-badge-link img {
+    width: 100%;
+    max-width: 200px;
+  }
+}
