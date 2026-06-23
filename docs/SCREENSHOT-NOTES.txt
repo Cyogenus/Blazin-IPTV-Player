@@ -22,7 +22,7 @@
   <script type="application/ld+json">
 [
   {
-    "@context": "https://site details.org",
+    "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "BLAZIN IPTV Player",
     "operatingSystem": "Windows 10, Windows 11",

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-sitemap: https://windowsiptv.com/sitemap.xml
+Sitemap: https://windowsiptv.com/sitemap.xml
