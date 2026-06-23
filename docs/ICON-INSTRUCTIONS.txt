@@ -1,0 +1,22 @@
+BLAZIN IPTV Player Website Icon Instructions
+
+The website now uses:
+
+docs/assets/app-icon.png
+docs/assets/favicon.png
+
+A placeholder icon is included. To use your real app icon:
+
+1. Rename your real icon to app-icon.png.
+2. Replace this file:
+   docs/assets/app-icon.png
+
+Optional:
+3. Replace this file too:
+   docs/assets/favicon.png
+
+Recommended sizes:
+- app-icon.png: 512x512 PNG
+- favicon.png: 64x64 PNG
+
+After replacing the icon files, upload the docs folder to GitHub again.

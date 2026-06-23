@@ -1,0 +1,15 @@
+Keyword optimization update
+
+Added high-intent phrases naturally across the site:
+
+- best Windows IPTV player
+- Windows IPTV player 2026
+- Xtream Codes player for Windows 11
+- lightweight M3U playlist player desktop
+- STB MAC IPTV player for Windows
+- Stalker Portal IPTV player for Windows
+- IPTV player with EPG for Windows
+
+Important:
+I avoided claiming the app is fully "free" everywhere because that could be misleading if the app uses a free trial instead of being permanently free.
+Where needed, the wording uses "free trial when available" or focuses on Microsoft Store download.
