@@ -69,11 +69,19 @@ p { margin-top: 0; }
   color: var(--text);
 }
 .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #111; border-color: transparent; }
-.card, .hero-card {
-  border: 1px solid var(--border);
-  background: rgba(18,25,35,0.88);
-  border-radius: 18px;
-  box-shadow: 0 14px 36px rgba(0,0,0,0.18);
+.hero-card {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.hero-screenshot {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  aspect-ratio: 600 / 425;
+  object-fit: contain;
 }
 .card { padding: 24px; }
 .card p { margin-bottom: 0; color: var(--muted); }
