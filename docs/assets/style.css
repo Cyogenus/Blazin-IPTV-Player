@@ -261,36 +261,72 @@ table.compare td { color:var(--muted); }
 
 /* Microsoft Store download badge */
 .store-with-badge {
+  display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 12px 14px;
   flex-wrap: wrap;
 }
 
 .store-badge-link {
   display: inline-flex;
   align-items: center;
-  text-decoration: none;
+  justify-content: center;
+  flex: 0 0 auto;
   line-height: 0;
-  border-radius: 14px;
+  padding: 0;
+  margin: 0;
+  border-radius: 10px;
+  text-decoration: none;
+  vertical-align: middle;
   transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
 }
 
 .store-badge-link:hover {
   transform: translateY(-1px);
-  filter: brightness(1.08);
-  box-shadow: 0 12px 34px rgba(0,0,0,.28);
+  filter: brightness(1.06);
 }
 
-.store-badge-link img {
+.store-badge-link img,
+.microsoft-store-badge {
   display: block;
-  width: 200px;
-  max-width: min(200px, 100%);
-  height: auto;
+  width: 200px !important;
+  height: auto !important;
+  max-width: 200px;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
-@media (max-width: 560px) {
+.store-with-badge .btn {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cta-band .store-with-badge,
+.hero .store-with-badge,
+.page-title .store-with-badge {
+  justify-content: center;
+}
+
+@media (max-width: 680px) {
+  .store-with-badge {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
   .store-badge-link,
-  .store-badge-link img {
+  .store-badge-link img,
+  .microsoft-store-badge {
+    width: 200px !important;
+    max-width: 100%;
+  }
+
+  .store-with-badge .btn {
     width: 100%;
-    max-width: 200px;
+    max-width: 320px;
   }
 }
