@@ -6,14 +6,14 @@
   <title>M3U Plus Player for Windows - BLAZIN IPTV Player</title>
   <meta name="description" content="BLAZIN IPTV Player supports compatible M3U Plus playlist URLs on Windows with Live TV, Movies, Series, EPG, and internal VLC playback when provided by the source.">
   <meta name="robots" content="index, follow, max-image-preview:large">
-  <link rel="canonical" href="https://cyogenus.github.io/Blazin-IPTV-Player/m3u-plus-player-windows.html">
+  <link rel="canonical" href="https://windowsiptv.com/m3u-plus-player-windows.html">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="shortcut icon" href="assets/favicon.ico">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <meta property="og:title" content="M3U Plus Player for Windows - BLAZIN IPTV Player">
   <meta property="og:description" content="BLAZIN IPTV Player supports compatible M3U Plus playlist URLs on Windows with Live TV, Movies, Series, EPG, and internal VLC playback when provided by the source.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://cyogenus.github.io/Blazin-IPTV-Player/m3u-plus-player-windows.html">
+  <meta property="og:url" content="https://windowsiptv.com/m3u-plus-player-windows.html">
   <meta property="og:site_name" content="BLAZIN IPTV Player">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="M3U Plus Player for Windows - BLAZIN IPTV Player">
@@ -30,7 +30,7 @@
     "description": "Fast Windows IPTV player for M3U, M3U Plus, Xtream Codes, STB MAC, and Stalker Portal sources with EPG and internal VLC playback.",
     "downloadUrl": "https://apps.microsoft.com/detail/9NQ5S0FFCN8T",
     "softwareHelp": "https://github.com/Cyogenus/Blazin-IPTV-Player/blob/main/USER_GUIDE.md",
-    "url": "https://cyogenus.github.io/Blazin-IPTV-Player/",
+    "url": "https://windowsiptv.com/",
     "sameAs": [
       "https://github.com/Cyogenus/Blazin-IPTV-Player",
       "https://www.reddit.com/r/BlazinIPTVPlayer/",

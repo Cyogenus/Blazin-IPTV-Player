@@ -9,15 +9,15 @@ Replace the full docs folder in GitHub.
 
 After upload, these direct image links should work:
 
-https://cyogenus.github.io/Blazin-IPTV-Player/screenshots/live-tv-playlist.png
-https://cyogenus.github.io/Blazin-IPTV-Player/screenshots/live-tv-epg.png
+https://windowsiptv.com/screenshots/live-tv-playlist.png
+https://windowsiptv.com/screenshots/live-tv-epg.png
 
 Your robots.txt should show separate lines:
 
 User-agent: *
 Allow: /
 
-Sitemap: https://cyogenus.github.io/Blazin-IPTV-Player/sitemap.xml
+Sitemap: https://windowsiptv.com/sitemap.xml
 
 If GitHub displays the robots text on one line in the file preview, click RAW.
 The raw file should show line breaks.
