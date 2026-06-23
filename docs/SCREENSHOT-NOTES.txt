@@ -22,7 +22,7 @@
   <script type="application/ld+json">
 [
   {
-    "@context": "https://schema.org",
+    "@context": "https://site details.org",
     "@type": "SoftwareApplication",
     "name": "BLAZIN IPTV Player",
     "operatingSystem": "Windows 10, Windows 11",
@@ -59,7 +59,6 @@
     </nav>
   </div>
 </header>
-
 
 <main>
   <section class="page-title">
@@ -107,7 +106,6 @@
     </div>
   </section>
 </main>
-
 
 <footer class="site-footer">
   <div class="container footer-grid">
