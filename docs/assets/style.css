@@ -346,3 +346,15 @@ table.compare td { color:var(--muted); }
     max-width: 320px;
   }
 }
+
+
+/* Setup guide cards */
+.content-narrow .small + p strong,
+.card p strong {
+  color: var(--text);
+}
+#setup-guides .card p,
+#smarters-comparison-terms p,
+#download-options p {
+  color: var(--muted);
+}
