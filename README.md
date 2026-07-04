@@ -20,47 +20,68 @@ Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**
 
 <img width="2545" height="1329" alt="Q27PKbMB0a" src="https://github.com/user-attachments/assets/9201c9d1-13b6-4939-8cf6-7b03c96ae9f4" />
 
-BLAZIN IPTV Player is getting even better.
+## BLAZIN IPTV Player Is Getting Even Better
 
-Right now, BLAZIN IPTV Player is built as a compact, Windows-first IPTV player that works great on desktops, laptops, and smaller screens. But soon, it will also include a new TV Mode for users who want a bigger, cleaner, living-room style experience.
+**BLAZIN IPTV Player** is currently built as a compact, Windows-first IPTV player designed to work well on:
 
-That means you will get the best of both worlds:
+* Windows desktops
+* Laptops
+* Smaller screens
+* Mini PCs
+* TV-connected Windows devices
 
-A compact IPTV player when you want something simple and lightweight, plus a full TV-style mode when you want a bigger interface for browsing Live TV, Movies, and Series.
+A new **TV Mode** is planned for a future update, giving users a bigger, cleaner, living-room style experience.
+
+## Best of Both Worlds
+
+BLAZIN IPTV Player will continue to offer:
+
+* A compact IPTV player for simple and lightweight use
+* A full TV-style mode for a larger browsing experience
+* Better flexibility for different Windows setups
+
+## Planned TV Mode Features
 
 TV Mode is planned to include:
 
-Full-screen TV-style interface
+* Full-screen TV-style interface
+* Easier keyboard and remote-style navigation
+* Live TV, Movies, and Series browsing
+* Movie and Series poster support
+* Category caching for faster switching
+* Better fullscreen playback controls
+* Search designed for large playlists
+* Smoother channel switching
+* Cleaner layout for couch-style viewing
 
-Easier keyboard and remote-style navigation
+## Coming Soon
 
-Live TV, Movies, and Series browsing
+TV Mode is still being worked on and is planned for a future update.
 
-Movie and Series poster support
+The goal is to make **BLAZIN IPTV Player** more flexible for every setup, whether you use it on a laptop, desktop, mini PC, or a TV-connected Windows device.
 
-Category caching for faster switching
+## Try BLAZIN IPTV Player
 
-Better fullscreen playback controls
+BLAZIN IPTV Player is available now on the Microsoft Store with a **7-day free trial**, so you can try it before buying:
 
-Search designed for large playlists
+[Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9nq5s0ffcn8t?hl=en-US&gl=US)
 
-Smoother channel switching
+## Links
 
-A cleaner layout for couch-style viewing
+* Website: [windowsiptv.com](https://windowsiptv.com)
+* Reddit Community: [r/BlazinIPTVPlayer](https://www.reddit.com/r/BlazinIPTVPlayer/)
 
-This feature is coming soon in a future update. It is still being worked on, but the goal is to make BLAZIN IPTV Player more flexible for every setup — whether you use it on a laptop, desktop, mini PC, or a TV-connected Windows device.
+## Legal Notice
 
-BLAZIN IPTV Player is available now on the Microsoft Store with a 7-day free trial, so you can try it before buying:
+BLAZIN IPTV Player does **not** provide:
 
-https://apps.microsoft.com/detail/9nq5s0ffcn8t?hl=en-US&gl=US
+* Channels
+* Playlists
+* IPTV accounts
+* Copyrighted content
 
-Website:
-https://windowsiptv.com
+Users must add their own legal IPTV source.
 
-Join the Reddit community for updates and feedback:
-https://www.reddit.com/r/BlazinIPTVPlayer/
-
-BLAZIN IPTV Player does not provide channels, playlists, IPTV accounts, or copyrighted content. Users must add their own legal IPTV source.
 
 ## Preview
 
