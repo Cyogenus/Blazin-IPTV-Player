@@ -1,0 +1,241 @@
+name: BLAZIN Sales Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      notify_even_if_no_new_sales:
+        description: "Send Telegram message even if no new sales?"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+  schedule:
+    - cron: "0 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  check-sales:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Microsoft Store acquisitions
+        shell: bash
+        env:
+          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
+          MS_APP_ID: ${{ secrets.MS_APP_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FORCE_NOTIFY: ${{ github.event.inputs.notify_even_if_no_new_sales }}
+        run: |
+          set -e
+
+          mkdir -p .github/state
+
+          python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timedelta, timezone
+
+          STATE_FILE = ".github/state/blazin_sales_state.json"
+
+          tenant_id = os.environ["MS_TENANT_ID"]
+          client_id = os.environ["MS_CLIENT_ID"]
+          client_secret = os.environ["MS_CLIENT_SECRET"]
+          app_id = os.environ["MS_APP_ID"]
+          telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
+          telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
+          force_notify = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
+
+          def post_form(url, data, headers=None):
+              encoded = urllib.parse.urlencode(data).encode("utf-8")
+              req = urllib.request.Request(url, data=encoded, headers=headers or {}, method="POST")
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return response.read().decode("utf-8")
+
+          def get_json(url, token):
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/json",
+                  },
+                  method="GET",
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.loads(response.read().decode("utf-8"))
+
+          def send_telegram(text):
+              url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
+              post_form(url, {
+                  "chat_id": telegram_chat_id,
+                  "text": text,
+              })
+
+          def load_state():
+              if not os.path.exists(STATE_FILE):
+                  return {
+                      "last_paid_total": 0,
+                      "last_total_acquisitions": 0,
+                      "last_checked": None,
+                  }
+
+              with open(STATE_FILE, "r", encoding="utf-8") as f:
+                  return json.load(f)
+
+          def save_state(state):
+              with open(STATE_FILE, "w", encoding="utf-8") as f:
+                  json.dump(state, f, indent=2, sort_keys=True)
+
+          def is_paid_row(row):
+              text = " ".join(str(v).lower() for v in row.values() if v is not None)
+
+              if "trial" in text:
+                  return False
+
+              if "free" in text:
+                  return False
+
+              paid_words = [
+                  "paid",
+                  "purchase",
+                  "sale",
+                  "credit card",
+                  "paypal",
+                  "carrier billing",
+                  "gift card",
+              ]
+
+              return any(word in text for word in paid_words)
+
+          def row_quantity(row):
+              for key in [
+                  "acquisitionQuantity",
+                  "AcquisitionQuantity",
+                  "quantity",
+                  "Quantity",
+                  "count",
+                  "Count",
+              ]:
+                  if key in row:
+                      try:
+                          return int(row[key])
+                      except Exception:
+                          return 0
+              return 0
+
+          now = datetime.now(timezone.utc)
+          start_date = now.strftime("%-m/%-d/%Y")
+          end_date = now.strftime("%-m/%-d/%Y")
+
+          token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+
+          token_response_raw = post_form(
+              token_url,
+              {
+                  "client_id": client_id,
+                  "client_secret": client_secret,
+                  "scope": "https://manage.devcenter.microsoft.com/.default",
+                  "grant_type": "client_credentials",
+              },
+              headers={"Content-Type": "application/x-www-form-urlencoded"},
+          )
+
+          token_response = json.loads(token_response_raw)
+          access_token = token_response.get("access_token")
+
+          if not access_token:
+              print(json.dumps(token_response, indent=2))
+              raise SystemExit("Failed to get Microsoft access token.")
+
+          api_url = (
+              "https://manage.devcenter.microsoft.com/v1.0/my/analytics/acquisitions?"
+              + urllib.parse.urlencode({
+                  "applicationId": app_id,
+                  "startDate": start_date,
+                  "endDate": end_date,
+                  "aggregationLevel": "day",
+              })
+          )
+
+          data = get_json(api_url, access_token)
+          rows = data.get("Value") or data.get("value") or []
+
+          if not isinstance(rows, list):
+              print(json.dumps(data, indent=2))
+              raise SystemExit("Unexpected Microsoft acquisitions response format.")
+
+          total_acquisitions = sum(row_quantity(row) for row in rows)
+          paid_total = sum(row_quantity(row) for row in rows if is_paid_row(row))
+
+          state = load_state()
+          previous_paid_total = int(state.get("last_paid_total", 0))
+          previous_total_acquisitions = int(state.get("last_total_acquisitions", 0))
+
+          new_paid_sales = max(0, paid_total - previous_paid_total)
+          new_total_acquisitions = max(0, total_acquisitions - previous_total_acquisitions)
+
+          state = {
+              "last_paid_total": paid_total,
+              "last_total_acquisitions": total_acquisitions,
+              "last_checked": now.isoformat(),
+              "date_checked_utc": now.strftime("%Y-%m-%d"),
+          }
+
+          save_state(state)
+
+          print("Rows returned:", len(rows))
+          print("Total acquisitions today:", total_acquisitions)
+          print("Paid sales today:", paid_total)
+          print("Previous paid sales today:", previous_paid_total)
+          print("New paid sales detected:", new_paid_sales)
+
+          if new_paid_sales > 0:
+              message = (
+                  "🔥 NEW BLAZIN IPTV PLAYER SALE!\n\n"
+                  f"New paid sales detected: {new_paid_sales}\n"
+                  f"Paid sales today: {paid_total}\n"
+                  f"Total acquisitions today: {total_acquisitions}\n"
+                  f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
+              )
+              send_telegram(message)
+
+          elif force_notify:
+              message = (
+                  "✅ BLAZIN sales check completed.\n\n"
+                  "No new paid sales detected.\n"
+                  f"Paid sales today: {paid_total}\n"
+                  f"Total acquisitions today: {total_acquisitions}\n"
+                  f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
+              )
+              send_telegram(message)
+
+          PY
+
+      - name: Save sales state
+        shell: bash
+        run: |
+          if git diff --quiet .github/state/blazin_sales_state.json; then
+            echo "No state changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add .github/state/blazin_sales_state.json
+          git commit -m "Update BLAZIN sales check state"
+          git push
