@@ -64,7 +64,7 @@ The goal is to make **BLAZIN IPTV Player** more flexible for every setup, whethe
 
 BLAZIN IPTV Player is available now on the Microsoft Store with a **7-day free trial**, so you can try it before buying:
 
-[Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9nq5s0ffcn8t?hl=en-US&gl=US)
+[Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=github_Blazin)
 
 ## Links
 
@@ -209,7 +209,7 @@ The app does not lock you into one login type, one playlist format, or one playb
 
 BLAZIN IPTV Player is now available on the **Microsoft Store** with a **free 7-day trial**.
 
-[Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T)
+[Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=github_Blazin)
 
 
 ---
@@ -229,4 +229,4 @@ BLAZIN IPTV Player is a media player only.
 
 The GitHub Pages website includes optimized landing pages for Windows IPTV player searches, including M3U Player for Windows, M3U Plus Player, Xtream Codes Player, STB MAC Player, Stalker Portal Player, IPTV Player with EPG, IPTV Smarters Alternative, VLC IPTV Player, and Best IPTV Player for Windows 11.
 
-Official website: https://cyogenus.github.io/Blazin-IPTV-Player/
+Official website: https://windowsiptv.com/
