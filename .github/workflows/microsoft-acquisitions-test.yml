@@ -1,0 +1,62 @@
+name: Microsoft Acquisitions Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  acquisitions-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test Microsoft Store acquisitions API
+        shell: bash
+        run: |
+          set -e
+
+          echo "Getting Microsoft access token..."
+
+          TOKEN_RESPONSE=$(curl -s -X POST \
+            "https://login.microsoftonline.com/${{ secrets.MS_TENANT_ID }}/oauth2/v2.0/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${{ secrets.MS_CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.MS_CLIENT_SECRET }}" \
+            -d "scope=https://manage.devcenter.microsoft.com/.default" \
+            -d "grant_type=client_credentials")
+
+          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token // empty')
+
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "Failed to get access token."
+            echo "$TOKEN_RESPONSE"
+            exit 1
+          fi
+
+          echo "Access token received."
+
+          START_DATE=$(date -u -d "7 days ago" +"%-m/%-d/%Y")
+          END_DATE=$(date -u +"%-m/%-d/%Y")
+
+          echo "Checking acquisitions from $START_DATE to $END_DATE..."
+
+          API_URL="https://manage.devcenter.microsoft.com/v1.0/my/analytics/acquisitions?applicationId=${{ secrets.MS_APP_ID }}&startDate=${START_DATE}&endDate=${END_DATE}&aggregationLevel=day"
+
+          RESPONSE=$(curl -s -X GET "$API_URL" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Accept: application/json")
+
+          echo "Microsoft API response:"
+          echo "$RESPONSE" | jq .
+
+          if echo "$RESPONSE" | jq -e '.Value // .value // empty' > /dev/null; then
+            curl -s -X POST \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -d text="✅ Microsoft Store acquisitions API test successful. BLAZIN sales checker can now be built."
+          else
+            curl -s -X POST \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -d text="⚠️ Microsoft login worked, but acquisitions API response needs review. Check GitHub Actions logs."
+
+            exit 1
+          fi
