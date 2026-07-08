@@ -1,0 +1,35 @@
+name: Microsoft Login Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  login-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get Microsoft Access Token
+        id: token
+        shell: bash
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "https://login.microsoftonline.com/${{ secrets.MS_TENANT_ID }}/oauth2/v2.0/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${{ secrets.MS_CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.MS_CLIENT_SECRET }}" \
+            -d "scope=https://manage.devcenter.microsoft.com/.default" \
+            -d "grant_type=client_credentials")
+
+          echo "$RESPONSE" > response.json
+
+          if echo "$RESPONSE" | grep -q "access_token"; then
+            echo "Authentication successful."
+
+            curl -s -X POST \
+              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -d text="✅ Microsoft authentication successful. Ready to connect to Partner Center."
+          else
+            echo "$RESPONSE"
+            exit 1
+          fi
