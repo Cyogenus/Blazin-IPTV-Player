@@ -100,51 +100,33 @@ jobs:
                   json.dump(state, f, indent=2, sort_keys=True)
 
           def row_quantity(row):
-              for key in [
-                  "acquisitionNum",
-                  "acquisitionQuantity",
-                  "AcquisitionQuantity",
-                  "quantity",
-                  "Quantity",
-                  "count",
-                  "Count",
-              ]:
-                  if key in row:
-                      try:
-                          return int(row[key])
-                      except Exception:
-                          return 0
-              return 0
-
-          def row_text(row):
-              return " ".join(str(v).lower() for v in row.values() if v is not None)
+              try:
+                  return int(row.get("acquisitionQuantity") or 0)
+              except Exception:
+                  return 0
 
           def is_paid_row(row):
-              text = row_text(row)
+              acquisition_type = str(row.get("acquisitionType", "")).strip().lower()
 
-              free_or_trial_words = [
-                  "trial",
-                  "free",
-                  "store-managed trial",
-                  "trial acquisition",
-              ]
+              try:
+                  price_usd = float(row.get("purchasePriceUSDAmount") or 0)
+                  price_local = float(row.get("purchasePriceLocalAmount") or 0)
+              except Exception:
+                  price_usd = 0
+                  price_local = 0
 
-              if any(word in text for word in free_or_trial_words):
+              if acquisition_type == "trial":
                   return False
 
-              paid_words = [
+              if price_usd > 0 or price_local > 0:
+                  return True
+
+              return acquisition_type in {
                   "paid",
                   "purchase",
-                  "sale",
                   "initial purchase",
                   "in-app purchase",
-                  "credit card",
-                  "paypal",
-                  "carrier billing",
-                  "gift card",
-              ]
-
-              return any(word in text for word in paid_words)
+              }
 
           now = datetime.now(timezone.utc)
           today_utc = now.strftime("%Y-%m-%d")
@@ -191,20 +173,18 @@ jobs:
               print(json.dumps(data, indent=2))
               raise SystemExit("Unexpected Microsoft acquisitions response format.")
 
+          total_acquisitions = sum(row_quantity(row) for row in rows)
+          paid_total = sum(row_quantity(row) for row in rows if is_paid_row(row))
+          paid_rows = [row for row in rows if is_paid_row(row)]
+
           print("Rows returned:", len(rows))
+          print("Total acquisitions today:", total_acquisitions)
+          print("Paid sales today:", paid_total)
+          print("Paid rows found:", len(paid_rows))
 
           if rows:
               print("DEBUG: First row data fields are ->", list(rows[0].keys()))
               print("DEBUG: Sample row data values ->", json.dumps(rows[0], indent=2))
-
-          total_acquisitions = sum(row_quantity(row) for row in rows)
-          paid_total = sum(row_quantity(row) for row in rows if is_paid_row(row))
-
-          paid_rows = [row for row in rows if is_paid_row(row)]
-
-          print("Total acquisitions today:", total_acquisitions)
-          print("Paid sales today:", paid_total)
-          print("Paid rows found:", len(paid_rows))
 
           state = load_state()
 
