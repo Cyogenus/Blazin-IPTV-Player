@@ -31,7 +31,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check Microsoft Store sales report
+      - name: Check Microsoft Store sales
         shell: bash
         env:
           MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
@@ -57,7 +57,7 @@ jobs:
           import urllib.parse
           import urllib.request
           from collections import defaultdict
-          from datetime import datetime, timezone
+          from datetime import datetime, timedelta, timezone
           from zoneinfo import ZoneInfo
 
           STATE_FILE = ".github/state/blazin_sales_state.json"
@@ -71,27 +71,7 @@ jobs:
           force_notify = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
 
           BASE_URL = "https://manage.devcenter.microsoft.com"
-
-          # Microsoft only allows query names with letters, numbers, and spaces.
-          QUERY_NAME = "BLAZIN Sales Check V7"
-
-          # API-safe fields only. Do not add OrderId here.
-          # OrderId exists in manual Partner Center CSV exports, but it is not an API-selectable column.
-          SALES_QUERY = (
-              "SELECT "
-              "TitleId, ProductId, XboxProductId, ProductTypeName, TitleName, "
-              "CatalogId, SandboxId, SkuId, SkuTypeName, SkuDisplayName, "
-              "AvailabilityId, RegionName, CountryName, Market, PaymentType, "
-              "StoreClientName, StoreClientCategory, ParentProductName, ParentProductId, "
-              "XboxParentProductId, AcquisitionType, PurchaseTaxType, LocalCurrencyCode, "
-              "SupportedPlatform, Age, Gender, OsVersion, DeviceType, DateStamp, "
-              "PurchaseQuantity, PurchasePriceUSDAmount, PurchaseTaxUSDAmount, "
-              "PurchasePriceLocalAmount, PurchaseTaxLocalAmount "
-              "FROM Acquisitions "
-              f"WHERE ProductId = '{app_id}' "
-              "TIMESPAN LAST_30_DAYS "
-              "AGGREGATED Daily"
-          )
+          QUERY_NAME = "BLAZIN Sales Check V8"
 
           PAID_PAYMENT_TYPES = {
               "credit card",
@@ -110,6 +90,13 @@ jobs:
 
           def lower_text(value):
               return clean_text(value).lower()
+
+          def row_get(row, *names):
+              wanted = {name.lower() for name in names}
+              for key, value in row.items():
+                  if clean_text(key).lower() in wanted:
+                      return value
+              return ""
 
           def post_form(url, data, headers=None):
               encoded = urllib.parse.urlencode(data).encode("utf-8")
@@ -210,31 +197,48 @@ jobs:
               with open(STATE_FILE, "w", encoding="utf-8") as f:
                   json.dump(state, f, indent=2, sort_keys=True)
 
-          def row_int(row, key):
-              try:
-                  return int(float(clean_text(row.get(key, "0")) or 0))
-              except Exception:
-                  return 0
+          def row_int(row, *keys):
+              for key in keys:
+                  raw = row_get(row, key)
+                  if raw != "":
+                      try:
+                          return int(float(clean_text(raw) or 0))
+                      except Exception:
+                          return 0
+              return 0
 
-          def row_float(row, key):
-              try:
-                  raw = clean_text(row.get(key, "0")).replace(",", "").replace("$", "")
-                  return float(raw or 0)
-              except Exception:
-                  return 0.0
+          def row_float(row, *keys):
+              for key in keys:
+                  raw = row_get(row, key)
+                  if raw != "":
+                      try:
+                          value = clean_text(raw).replace(",", "").replace("$", "")
+                          return float(value or 0)
+                      except Exception:
+                          return 0.0
+              return 0.0
 
           def purchase_quantity(row):
-              return row_int(row, "PurchaseQuantity")
+              return row_int(row, "PurchaseQuantity", "purchaseQuantity", "acquisitionQuantity", "AcquisitionQuantity")
 
           def usd_amount(row):
-              return row_float(row, "PurchasePriceUSDAmount")
+              return row_float(row, "PurchasePriceUSDAmount", "purchasePriceUSDAmount")
 
           def local_amount(row):
-              return row_float(row, "PurchasePriceLocalAmount")
+              return row_float(row, "PurchasePriceLocalAmount", "purchasePriceLocalAmount")
+
+          def acquisition_type(row):
+              return clean_text(row_get(row, "AcquisitionType", "acquisitionType"))
+
+          def payment_type(row):
+              return clean_text(row_get(row, "PaymentType", "paymentType", "paymentInstrumentType", "PaymentInstrumentType"))
+
+          def sku_type(row):
+              return clean_text(row_get(row, "SkuTypeName", "skuTypeName"))
 
           def row_country(row):
-              country = clean_text(row.get("CountryName"))
-              market = clean_text(row.get("Market"))
+              country = clean_text(row_get(row, "CountryName", "countryName"))
+              market = clean_text(row_get(row, "Market", "market"))
 
               if country and market:
                   return f"{country} ({market})"
@@ -248,7 +252,7 @@ jobs:
               return "Unknown"
 
           def row_date_utc(row):
-              value = clean_text(row.get("DateStamp"))
+              value = clean_text(row_get(row, "DateStamp", "dateStamp", "Date", "date"))
               if not value:
                   return None
 
@@ -258,7 +262,10 @@ jobs:
                   try:
                       return datetime.strptime(value[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
                   except Exception:
-                      return None
+                      try:
+                          return datetime.strptime(value[:10], "%m/%d/%Y").replace(tzinfo=timezone.utc)
+                      except Exception:
+                          return None
 
           def row_date_pacific(row):
               dt = row_date_utc(row)
@@ -272,59 +279,57 @@ jobs:
               if qty <= 0:
                   return False
 
-              sku_type = lower_text(row.get("SkuTypeName"))
-              acquisition_type = lower_text(row.get("AcquisitionType"))
-              payment_type = lower_text(row.get("PaymentType"))
+              atype = lower_text(acquisition_type(row))
+              ptype = lower_text(payment_type(row))
+              stype = lower_text(sku_type(row))
               usd = usd_amount(row)
               local = local_amount(row)
 
-              if acquisition_type != "paid":
+              if atype != "paid":
                   return False
 
-              if sku_type != "full":
+              if stype and stype != "full":
                   return False
 
               if usd > 0 or local > 0:
                   return True
 
-              if payment_type in PAID_PAYMENT_TYPES:
+              if ptype in PAID_PAYMENT_TYPES:
                   return True
 
               return False
 
           def is_trial_or_free_row(row):
-              sku_type = lower_text(row.get("SkuTypeName"))
-              acquisition_type = lower_text(row.get("AcquisitionType"))
-              payment_type = lower_text(row.get("PaymentType"))
+              stype = lower_text(sku_type(row))
+              atype = lower_text(acquisition_type(row))
+              ptype = lower_text(payment_type(row))
 
               return (
-                  sku_type == "trial"
-                  or acquisition_type in {"trial", "free"}
-                  or payment_type == "zero amount paid"
+                  stype == "trial"
+                  or atype in {"trial", "free"}
+                  or ptype == "zero amount paid"
               )
 
           def is_prepaid_code_row(row):
-              return lower_text(row.get("AcquisitionType")) == "prepaid code"
+              return lower_text(acquisition_type(row)) == "prepaid code"
 
           def paid_row_fingerprint(row):
-              # API reports are aggregated. This fingerprint identifies a paid row bucket.
-              # If PurchaseQuantity increases for the same bucket, the workflow counts only the delta.
               parts = {
-                  "DateStamp": clean_text(row.get("DateStamp")),
-                  "ProductId": clean_text(row.get("ProductId")),
-                  "TitleId": clean_text(row.get("TitleId")),
-                  "SkuId": clean_text(row.get("SkuId")),
-                  "SkuTypeName": clean_text(row.get("SkuTypeName")),
-                  "SkuDisplayName": clean_text(row.get("SkuDisplayName")),
-                  "CountryName": clean_text(row.get("CountryName")),
-                  "Market": clean_text(row.get("Market")),
-                  "PaymentType": clean_text(row.get("PaymentType")),
-                  "AcquisitionType": clean_text(row.get("AcquisitionType")),
-                  "LocalCurrencyCode": clean_text(row.get("LocalCurrencyCode")),
-                  "DeviceType": clean_text(row.get("DeviceType")),
-                  "StoreClientName": clean_text(row.get("StoreClientName")),
-                  "PurchasePriceUSDAmount": clean_text(row.get("PurchasePriceUSDAmount")),
-                  "PurchasePriceLocalAmount": clean_text(row.get("PurchasePriceLocalAmount")),
+                  "DateStamp": clean_text(row_get(row, "DateStamp", "dateStamp", "Date", "date")),
+                  "ProductId": clean_text(row_get(row, "ProductId", "ProductID", "productId", "productID")),
+                  "TitleId": clean_text(row_get(row, "TitleId", "TitleID", "titleId", "titleID")),
+                  "SkuId": clean_text(row_get(row, "SkuId", "SkuID", "skuId", "skuID")),
+                  "SkuTypeName": sku_type(row),
+                  "SkuDisplayName": clean_text(row_get(row, "SkuDisplayName", "skuDisplayName")),
+                  "CountryName": clean_text(row_get(row, "CountryName", "countryName")),
+                  "Market": clean_text(row_get(row, "Market", "market")),
+                  "PaymentType": payment_type(row),
+                  "AcquisitionType": acquisition_type(row),
+                  "LocalCurrencyCode": clean_text(row_get(row, "LocalCurrencyCode", "localCurrencyCode")),
+                  "DeviceType": clean_text(row_get(row, "DeviceType", "deviceType")),
+                  "StoreClientName": clean_text(row_get(row, "StoreClientName", "storeClientName", "storeClient")),
+                  "PurchasePriceUSDAmount": clean_text(row_get(row, "PurchasePriceUSDAmount", "purchasePriceUSDAmount")),
+                  "PurchasePriceLocalAmount": clean_text(row_get(row, "PurchasePriceLocalAmount", "purchasePriceLocalAmount")),
               }
 
               raw = json.dumps(parts, sort_keys=True)
@@ -371,6 +376,141 @@ jobs:
               values = response_values(response)
               return values[0] if values else None
 
+          def metadata_names(items):
+              names = []
+
+              for item in items or []:
+                  if isinstance(item, str):
+                      names.append(clean_text(item))
+                  elif isinstance(item, dict):
+                      for key in [
+                          "columnName",
+                          "ColumnName",
+                          "metricName",
+                          "MetricName",
+                          "name",
+                          "Name",
+                          "fieldName",
+                          "FieldName",
+                      ]:
+                          if item.get(key):
+                              names.append(clean_text(item.get(key)))
+                              break
+
+              return [name for name in names if name]
+
+          def resolve_name(available_names, wanted):
+              wanted_lower = wanted.lower()
+              for name in available_names:
+                  if name.lower() == wanted_lower:
+                      return name
+              return None
+
+          def get_acquisitions_metadata(token):
+              url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledDataset"
+              data = get_json(url, token)
+
+              for item in response_values(data):
+                  dataset_name = clean_text(item.get("datasetName") or item.get("DatasetName") or item.get("name") or item.get("Name"))
+                  if dataset_name.lower() == "acquisitions":
+                      columns = metadata_names(item.get("selectableColumns") or item.get("SelectableColumns") or [])
+                      metrics = metadata_names(item.get("availableMetrics") or item.get("AvailableMetrics") or [])
+                      return columns, metrics
+
+              print("ScheduledDataset response:")
+              print(json.dumps(data, indent=2))
+              raise RuntimeError("Could not find Acquisitions dataset metadata.")
+
+          def build_sales_query(token):
+              columns, metrics = get_acquisitions_metadata(token)
+
+              print("Selectable columns from Microsoft:")
+              print(json.dumps(columns, indent=2))
+              print("Available metrics from Microsoft:")
+              print(json.dumps(metrics, indent=2))
+
+              desired_columns = [
+                  "TitleId",
+                  "ProductId",
+                  "XboxProductId",
+                  "ProductTypeName",
+                  "TitleName",
+                  "CatalogId",
+                  "SandboxId",
+                  "SkuId",
+                  "SkuTypeName",
+                  "SkuDisplayName",
+                  "AvailabilityId",
+                  "RegionName",
+                  "CountryName",
+                  "Market",
+                  "PaymentType",
+                  "StoreClientName",
+                  "StoreClientCategory",
+                  "ParentProductName",
+                  "ParentProductId",
+                  "XboxParentProductId",
+                  "AcquisitionType",
+                  "PurchaseTaxType",
+                  "LocalCurrencyCode",
+                  "SupportedPlatform",
+                  "Age",
+                  "Gender",
+                  "OsVersion",
+                  "DeviceType",
+                  "DateStamp",
+              ]
+
+              desired_metrics = [
+                  "PurchaseQuantity",
+                  "PurchasePriceUSDAmount",
+                  "PurchaseTaxUSDAmount",
+                  "PurchasePriceLocalAmount",
+                  "PurchaseTaxLocalAmount",
+              ]
+
+              selected = []
+
+              for wanted in desired_columns:
+                  resolved = resolve_name(columns, wanted)
+                  if resolved and resolved not in selected:
+                      selected.append(resolved)
+
+              for wanted in desired_metrics:
+                  resolved = resolve_name(metrics, wanted)
+                  if resolved and resolved not in selected:
+                      selected.append(resolved)
+
+              purchase_metric = resolve_name(metrics, "PurchaseQuantity")
+              if not purchase_metric:
+                  raise RuntimeError("Microsoft metadata did not include PurchaseQuantity in availableMetrics.")
+
+              product_col = (
+                  resolve_name(columns, "ProductId")
+                  or resolve_name(columns, "ProductID")
+                  or resolve_name(columns, "TitleId")
+                  or resolve_name(columns, "TitleID")
+              )
+
+              if not selected:
+                  raise RuntimeError("No selectable columns were resolved from Microsoft metadata.")
+
+              query = (
+                  "SELECT "
+                  + ", ".join(selected)
+                  + " FROM Acquisitions "
+              )
+
+              if product_col:
+                  query += f"WHERE {product_col} = '{app_id}' "
+
+              query += "TIMESPAN LAST_30_DAYS AGGREGATED Daily"
+
+              print("Final Microsoft report query:")
+              print(query)
+
+              return query
+
           def get_or_create_query(token, state):
               saved_query_id = clean_text(state.get("query_id"))
               saved_query_name = clean_text(state.get("query_name"))
@@ -390,10 +530,12 @@ jobs:
                       print("Using existing query:", query_id)
                       return query_id
 
+              sales_query = build_sales_query(token)
+
               payload = {
-                  "Query": SALES_QUERY,
+                  "Query": sales_query,
                   "Name": QUERY_NAME,
-                  "Description": "BLAZIN paid sales checker using API safe Acquisitions fields.",
+                  "Description": "BLAZIN paid sales checker using Microsoft selectable Acquisitions fields.",
               }
 
               created = post_json(queries_url, token, payload)
@@ -493,11 +635,11 @@ jobs:
 
               for row in rows:
                   dt = row_date_utc(row)
-                  date_text = dt.strftime("%Y-%m-%d %H:%M UTC") if dt else clean_text(row.get("DateStamp")) or "Unknown date"
+                  date_text = dt.strftime("%Y-%m-%d %H:%M UTC") if dt else clean_text(row_get(row, "DateStamp", "dateStamp", "Date", "date")) or "Unknown date"
 
                   usd = usd_amount(row)
                   local = local_amount(row)
-                  currency = clean_text(row.get("LocalCurrencyCode"))
+                  currency = clean_text(row_get(row, "LocalCurrencyCode", "localCurrencyCode"))
 
                   if usd > 0:
                       price_text = f"${usd:.2f} USD"
@@ -513,15 +655,15 @@ jobs:
                       f"{purchase_quantity(row)} | "
                       f"{row_country(row)} | "
                       f"{date_text} | "
-                      f"{clean_text(row.get('PaymentType')) or 'Unknown payment'} | "
-                      f"{clean_text(row.get('AcquisitionType')) or 'Unknown type'} | "
-                      f"{clean_text(row.get('SkuTypeName')) or 'Unknown SKU'} | "
+                      f"{payment_type(row) or 'Unknown payment'} | "
+                      f"{acquisition_type(row) or 'Unknown type'} | "
+                      f"{sku_type(row) or 'Unknown SKU'} | "
                       f"{price_text}"
                   )
 
               return "\n".join(lines)
 
-          def main():
+          def run_report_flow():
               now_utc = datetime.now(timezone.utc)
               today_pt = datetime.now(ZoneInfo("America/Los_Angeles")).date()
 
@@ -536,6 +678,14 @@ jobs:
 
               csv_text = download_text(download_url)
               rows = parse_report_csv(csv_text)
+
+              matching_rows = [
+                  row for row in rows
+                  if clean_text(row_get(row, "ProductId", "ProductID", "TitleId", "TitleID")).upper() == app_id.upper()
+              ]
+
+              if matching_rows:
+                  rows = matching_rows
 
               paid_rows = [row for row in rows if is_paid_sale_row(row)]
               trial_or_free_rows = [row for row in rows if is_trial_or_free_row(row)]
@@ -659,7 +809,7 @@ jobs:
                   )
                   send_telegram(message)
 
-          main()
+          run_report_flow()
           PY
 
       - name: Save sales state
