@@ -48,7 +48,7 @@ jobs:
           from datetime import datetime, timedelta, timezone
 
           STATE_FILE = ".github/state/blazin_sales_state.json"
-          WINDOW_DAYS = 2
+          WINDOW_DAYS = 1
 
           tenant_id = os.environ["MS_TENANT_ID"]
           client_id = os.environ["MS_CLIENT_ID"]
@@ -229,10 +229,10 @@ jobs:
                   "🔥 NEW BLAZIN IPTV PLAYER PAID SALE!\n\n"
                   f"New paid sales: {new_paid_quantity}\n"
                   f"New gross sales: ${new_gross_sales:.2f}\n"
-                  f"Paid sales 30d: {paid_quantity}\n"
-                  f"Gross sales 30d: ${gross_sales_usd:.2f}\n"
-                  f"Trials 30d: {trial_total}\n"
-                  f"Total acquisitions 30d: {total_acquisitions}\n"
+                  f"Paid sales Today: {paid_quantity}\n"
+                  f"Gross sales Today: ${gross_sales_usd:.2f}\n"
+                  f"Trials Today: {trial_total}\n"
+                  f"Total acquisitions Today: {total_acquisitions}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
 
