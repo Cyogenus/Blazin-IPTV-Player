@@ -25,12 +25,13 @@ concurrency:
 jobs:
   check-sales:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check Microsoft Store acquisitions
+      - name: Check Microsoft Store sales report
         shell: bash
         env:
           MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
@@ -46,14 +47,16 @@ jobs:
           mkdir -p .github/state
 
           python3 <<'PY'
-          import hashlib
+          import csv
+          import io
           import json
           import os
+          import time
           import urllib.error
           import urllib.parse
           import urllib.request
           from collections import defaultdict
-          from datetime import datetime, timedelta, timezone
+          from datetime import datetime, timezone
           from zoneinfo import ZoneInfo
 
           STATE_FILE = ".github/state/blazin_sales_state.json"
@@ -61,59 +64,51 @@ jobs:
           tenant_id = os.environ["MS_TENANT_ID"]
           client_id = os.environ["MS_CLIENT_ID"]
           client_secret = os.environ["MS_CLIENT_SECRET"]
-          app_id = os.environ["MS_APP_ID"]
+          app_id = os.environ["MS_APP_ID"].strip()
           telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
           telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
           force_notify = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
 
-          PAID_TYPES = {
-              "paid",
-              "iap",
-              "subscription iap",
-              "charged pre order",
+          BASE_URL = "https://manage.devcenter.microsoft.com"
+
+          # Query name can only use letters, numbers, and spaces.
+          QUERY_NAME = "BLAZIN Sales Check V6"
+
+          SALES_QUERY = (
+              "SELECT "
+              "TitleId, ProductId, XboxProductId, OrderId, ProductTypeName, TitleName, "
+              "CatalogId, SandboxId, SkuId, SkuTypeName, SkuDisplayName, "
+              "AvailabilityId, RegionName, CountryName, Market, PaymentType, "
+              "StoreClientName, StoreClientCategory, ParentProductName, ParentProductId, "
+              "ParentProductDisplayName, XboxParentProductId, AcquisitionType, "
+              "AbstractAcquisitionType, PurchaseTaxType, LocalCurrencyCode, "
+              "SupportedPlatform, Age, Gender, OsVersion, DeviceType, WishlistId, "
+              "IsWishlisted, IsGiftPurchase, TransactionOrigin, ProductSubTypeName, "
+              "DateStamp, PurchaseQuantity, PurchasePriceUSDAmount, PurchaseTaxUSDAmount, "
+              "PurchasePriceLocalAmount, PurchaseTaxLocalAmount "
+              "FROM Acquisitions "
+              f"WHERE ProductId = '{app_id}' "
+              "TIMESPAN LAST_30_DAYS "
+              "AGGREGATED Daily"
+          )
+
+          PAID_PAYMENT_TYPES = {
+              "credit card",
+              "direct debit card",
+              "ewallet",
+              "mobile operator",
+              "ms balance",
+              "online bank transfer",
+              "paypal",
+              "real time payments",
+              "split transaction",
           }
 
-          FREE_TYPES = {
-              "free",
-              "trial",
-              "promotional code",
-              "private audience",
-              "pre order",
-              "xbox game pass",
-              "game pass",
-              "disk",
-              "prepaid code",
-              "cancelled pre order",
-              "failed pre order",
-          }
-
-          ZERO_PAYMENT_TYPES = {
+          FREE_PAYMENT_TYPES = {
               "",
               "unknown",
               "zero amount paid",
-              "free",
-              "no charge",
-              "trial",
-          }
-
-          COUNTRY_NAMES = {
-              "US": "United States",
-              "BD": "Bangladesh",
-              "FR": "France",
-              "GR": "Greece",
-              "DE": "Germany",
-              "IT": "Italy",
-              "VU": "Vanuatu",
-              "CA": "Canada",
-              "GB": "United Kingdom",
-              "AU": "Australia",
-              "IN": "India",
-              "PK": "Pakistan",
-              "TR": "Turkey",
-              "NL": "Netherlands",
-              "ES": "Spain",
-              "BR": "Brazil",
-              "MX": "Mexico",
+              "token redemption",
           }
 
           def clean_text(value):
@@ -121,18 +116,6 @@ jobs:
 
           def lower_text(value):
               return clean_text(value).lower()
-
-          def format_mdy(dt):
-              return f"{dt.month}/{dt.day}/{dt.year}"
-
-          def country_label(code):
-              code = clean_text(code).upper()
-              if not code:
-                  return "Unknown"
-              name = COUNTRY_NAMES.get(code)
-              if name:
-                  return f"{name} ({code})"
-              return code
 
           def post_form(url, data, headers=None):
               encoded = urllib.parse.urlencode(data).encode("utf-8")
@@ -145,12 +128,13 @@ jobs:
                   body = e.read().decode("utf-8", errors="replace")
                   raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
 
-          def get_json(url, token):
+          def get_json(url, token, allow_404_empty=False):
               req = urllib.request.Request(
                   url,
                   headers={
                       "Authorization": f"Bearer {token}",
                       "Accept": "application/json",
+                      "Content-Type": "application/json",
                   },
                   method="GET",
               )
@@ -158,6 +142,48 @@ jobs:
               try:
                   with urllib.request.urlopen(req, timeout=30) as response:
                       return json.loads(response.read().decode("utf-8"))
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode("utf-8", errors="replace")
+
+                  if e.code == 404 and allow_404_empty:
+                      print("GET returned 404, treating as empty result:", body[:500])
+                      return {
+                          "value": [],
+                          "Value": [],
+                          "totalCount": 0,
+                          "TotalCount": 0,
+                          "message": body,
+                          "statusCode": 404,
+                      }
+
+                  raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
+
+          def post_json(url, token, payload):
+              body = json.dumps(payload).encode("utf-8")
+              req = urllib.request.Request(
+                  url,
+                  data=body,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/json",
+                      "Content-Type": "application/json",
+                  },
+                  method="POST",
+              )
+
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.loads(response.read().decode("utf-8"))
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode("utf-8", errors="replace")
+                  raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
+
+          def download_text(url):
+              req = urllib.request.Request(url, method="GET")
+
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as response:
+                      return response.read().decode("utf-8-sig", errors="replace")
               except urllib.error.HTTPError as e:
                   body = e.read().decode("utf-8", errors="replace")
                   raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
@@ -172,15 +198,17 @@ jobs:
           def load_state():
               if not os.path.exists(STATE_FILE):
                   return {
-                      "seen_paid_row_quantities": {},
+                      "seen_paid_order_ids": [],
                       "last_checked": None,
+                      "query_name": None,
+                      "query_id": None,
                   }
 
               with open(STATE_FILE, "r", encoding="utf-8") as f:
                   state = json.load(f)
 
-              if "seen_paid_row_quantities" not in state:
-                  state["seen_paid_row_quantities"] = {}
+              if "seen_paid_order_ids" not in state:
+                  state["seen_paid_order_ids"] = []
 
               return state
 
@@ -188,383 +216,417 @@ jobs:
               with open(STATE_FILE, "w", encoding="utf-8") as f:
                   json.dump(state, f, indent=2, sort_keys=True)
 
-          def row_quantity(row):
-              for key in [
-                  "acquisitionQuantity",
-                  "AcquisitionQuantity",
-                  "quantity",
-                  "Quantity",
-                  "count",
-                  "Count",
-              ]:
-                  if key in row:
-                      try:
-                          return int(float(row.get(key) or 0))
-                      except Exception:
-                          return 0
-              return 0
+          def row_int(row, key):
+              try:
+                  return int(float(clean_text(row.get(key, "0")) or 0))
+              except Exception:
+                  return 0
 
-          def row_float(row, keys):
-              for key in keys:
-                  if key in row:
-                      try:
-                          raw = clean_text(row.get(key)).replace(",", "").replace("$", "")
-                          return float(raw or 0)
-                      except Exception:
-                          return 0.0
-              return 0.0
+          def row_float(row, key):
+              try:
+                  raw = clean_text(row.get(key, "0")).replace(",", "").replace("$", "")
+                  return float(raw or 0)
+              except Exception:
+                  return 0.0
 
-          def row_price_usd(row):
-              return row_float(row, ["purchasePriceUSDAmount", "PurchasePriceUSDAmount"])
+          def purchase_quantity(row):
+              return row_int(row, "PurchaseQuantity")
 
-          def row_price_local(row):
-              return row_float(row, ["purchasePriceLocalAmount", "PurchasePriceLocalAmount"])
+          def usd_amount(row):
+              return row_float(row, "PurchasePriceUSDAmount")
 
-          def row_market(row):
-              return clean_text(row.get("market") or row.get("Market") or "Unknown")
+          def local_amount(row):
+              return row_float(row, "PurchasePriceLocalAmount")
 
-          def row_acquisition_type(row):
-              return clean_text(row.get("acquisitionType") or row.get("AcquisitionType"))
+          def order_id(row):
+              return clean_text(row.get("OrderId"))
 
-          def row_payment_type(row):
-              return clean_text(row.get("paymentInstrumentType") or row.get("PaymentInstrumentType"))
+          def row_country(row):
+              country = clean_text(row.get("CountryName"))
+              market = clean_text(row.get("Market"))
 
-          def row_date_text(row):
-              return clean_text(row.get("date") or row.get("Date"))
+              if country and market:
+                  return f"{country} ({market})"
 
-          def parse_row_date(row):
-              value = row_date_text(row)
+              if country:
+                  return country
+
+              if market:
+                  return market
+
+              return "Unknown"
+
+          def row_date_utc(row):
+              value = clean_text(row.get("DateStamp"))
               if not value:
                   return None
 
-              for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%-m/%-d/%Y"):
-                  try:
-                      return datetime.strptime(value[:10], fmt).date()
-                  except Exception:
-                      pass
+              try:
+                  return datetime.fromisoformat(value.replace("Z", "+00:00"))
+              except Exception:
+                  return None
 
-              return None
+          def row_date_pacific(row):
+              dt = row_date_utc(row)
+              if not dt:
+                  return None
 
-          def is_paid_row(row):
-              qty = row_quantity(row)
+              return dt.astimezone(ZoneInfo("America/Los_Angeles")).date()
+
+          def is_paid_sale_row(row):
+              qty = purchase_quantity(row)
               if qty <= 0:
                   return False
 
-              acquisition_type = lower_text(row_acquisition_type(row))
-              payment_type = lower_text(row_payment_type(row))
+              sku_type = lower_text(row.get("SkuTypeName"))
+              acquisition_type = lower_text(row.get("AcquisitionType"))
+              payment_type = lower_text(row.get("PaymentType"))
+              usd = usd_amount(row)
+              local = local_amount(row)
 
-              if acquisition_type in PAID_TYPES:
+              # From your CSV, real sales are full + Paid + Credit Card/PayPal + non-zero amount.
+              if acquisition_type == "paid" and sku_type == "full" and (usd > 0 or local > 0):
                   return True
 
-              if acquisition_type in FREE_TYPES:
-                  return False
-
-              if row_price_usd(row) > 0 or row_price_local(row) > 0:
-                  return True
-
-              if payment_type not in ZERO_PAYMENT_TYPES:
+              if acquisition_type == "paid" and payment_type in PAID_PAYMENT_TYPES:
                   return True
 
               return False
 
-          def row_fingerprint(row):
-              parts = {
-                  "date": row_date_text(row),
-                  "applicationId": clean_text(row.get("applicationId") or row.get("ApplicationId")),
-                  "applicationName": clean_text(row.get("applicationName") or row.get("ApplicationName")),
-                  "acquisitionType": row_acquisition_type(row),
-                  "market": row_market(row),
-                  "paymentInstrumentType": row_payment_type(row),
-                  "deviceType": clean_text(row.get("deviceType") or row.get("DeviceType")),
-                  "storeClient": clean_text(row.get("storeClient") or row.get("StoreClient")),
-                  "osVersion": clean_text(row.get("osVersion") or row.get("OsVersion")),
-                  "purchasePriceUSDAmount": clean_text(row.get("purchasePriceUSDAmount") or row.get("PurchasePriceUSDAmount")),
-                  "purchasePriceLocalAmount": clean_text(row.get("purchasePriceLocalAmount") or row.get("PurchasePriceLocalAmount")),
-              }
-
-              raw = json.dumps(parts, sort_keys=True)
-              return hashlib.sha1(raw.encode("utf-8")).hexdigest()
-
-          def build_acquisitions_url(start_date, end_date, groupby, skip=0):
-              params = {
-                  "applicationId": app_id,
-                  "startDate": start_date,
-                  "endDate": end_date,
-                  "aggregationLevel": "day",
-                  "top": 10000,
-                  "skip": skip,
-              }
-
-              if groupby:
-                  params["groupby"] = groupby
+          def is_trial_or_free_row(row):
+              sku_type = lower_text(row.get("SkuTypeName"))
+              acquisition_type = lower_text(row.get("AcquisitionType"))
+              payment_type = lower_text(row.get("PaymentType"))
 
               return (
-                  "https://manage.devcenter.microsoft.com/v1.0/my/analytics/acquisitions?"
-                  + urllib.parse.urlencode(params)
+                  sku_type == "trial"
+                  or acquisition_type in {"trial", "free"}
+                  or payment_type == "zero amount paid"
               )
 
-          def fetch_acquisitions(token, start_date, end_date):
-              groupby_attempts = [
-                  "date,applicationName,acquisitionType,market,deviceType,storeClient,paymentInstrumentType,osVersion",
-                  "date,applicationName,acquisitionType,market,deviceType,storeClient,paymentInstrumentType",
-                  "date,acquisitionType,market,paymentInstrumentType",
-                  "date,acquisitionType,market",
-                  "date,acquisitionType",
-                  None,
-              ]
+          def is_prepaid_code_row(row):
+              return lower_text(row.get("AcquisitionType")) == "prepaid code"
 
-              last_error = None
+          def parse_report_csv(text):
+              reader = csv.DictReader(io.StringIO(text))
+              rows = []
 
-              for groupby in groupby_attempts:
-                  try:
-                      print("Trying groupby:", groupby or "none")
+              for row in reader:
+                  if row:
+                      rows.append({clean_text(k): clean_text(v) for k, v in row.items() if k is not None})
 
-                      all_rows = []
-                      skip = 0
+              return rows
 
-                      while True:
-                          api_url = build_acquisitions_url(start_date, end_date, groupby, skip=skip)
-                          data = get_json(api_url, token)
+          def get_access_token():
+              token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
-                          rows = data.get("Value") or data.get("value") or []
-                          if not isinstance(rows, list):
-                              print(json.dumps(data, indent=2))
-                              raise RuntimeError("Unexpected Microsoft acquisitions response format.")
+              token_response_raw = post_form(
+                  token_url,
+                  {
+                      "client_id": client_id,
+                      "client_secret": client_secret,
+                      "scope": "https://manage.devcenter.microsoft.com/.default",
+                      "grant_type": "client_credentials",
+                  },
+                  headers={"Content-Type": "application/x-www-form-urlencoded"},
+              )
 
-                          all_rows.extend(rows)
+              token_response = json.loads(token_response_raw)
+              access_token = token_response.get("access_token")
 
-                          total_count = int(data.get("TotalCount") or data.get("totalCount") or len(all_rows))
-                          if len(all_rows) >= total_count or not rows:
-                              break
+              if not access_token:
+                  print(json.dumps(token_response, indent=2))
+                  raise RuntimeError("Failed to get Microsoft access token.")
 
-                          skip += 10000
+              return access_token
 
-                      return all_rows, groupby
+          def response_values(response):
+              values = response.get("value") or response.get("Value") or []
+              return values if isinstance(values, list) else []
 
-                  except Exception as e:
-                      last_error = e
-                      print("API attempt failed:", str(e))
+          def first_value(response):
+              values = response_values(response)
+              return values[0] if values else None
 
-              raise last_error
+          def get_or_create_query(token, state):
+              saved_query_id = clean_text(state.get("query_id"))
+              saved_query_name = clean_text(state.get("query_name"))
+
+              if saved_query_id and saved_query_name == QUERY_NAME:
+                  print("Using query ID from state:", saved_query_id)
+                  return saved_query_id
+
+              queries_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledQueries"
+              existing = get_json(queries_url, token, allow_404_empty=True)
+
+              for item in response_values(existing):
+                  name = clean_text(item.get("name") or item.get("Name"))
+                  query_id = clean_text(item.get("queryId") or item.get("QueryId"))
+
+                  if name == QUERY_NAME and query_id:
+                      print("Using existing query:", query_id)
+                      return query_id
+
+              payload = {
+                  "Query": SALES_QUERY,
+                  "Name": QUERY_NAME,
+                  "Description": "BLAZIN paid sales checker using Acquisitions report fields.",
+              }
+
+              created = post_json(queries_url, token, payload)
+              item = first_value(created)
+
+              if not item:
+                  print(json.dumps(created, indent=2))
+                  raise RuntimeError("Microsoft did not return a queryId after creating the sales query.")
+
+              query_id = clean_text(item.get("queryId") or item.get("QueryId"))
+
+              if not query_id:
+                  print(json.dumps(created, indent=2))
+                  raise RuntimeError("Created sales query, but queryId was missing.")
+
+              print("Created query:", query_id)
+              return query_id
+
+          def create_report(token, query_id):
+              report_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledReport"
+
+              payload = {
+                  "Description": "BLAZIN IPTV Player sales check",
+                  "QueryId": query_id,
+                  "ReportName": f"BLAZIN Sales Check {datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                  "executeNow": True,
+              }
+
+              created = post_json(report_url, token, payload)
+              item = first_value(created)
+
+              if not item:
+                  print(json.dumps(created, indent=2))
+                  raise RuntimeError("Microsoft did not return a reportId after creating the report.")
+
+              report_id = clean_text(item.get("reportId") or item.get("ReportId"))
+              secure_link = clean_text(item.get("reportAccessSecureLink") or item.get("ReportAccessSecureLink"))
+
+              if not report_id:
+                  print(json.dumps(created, indent=2))
+                  raise RuntimeError("Created report, but reportId was missing.")
+
+              print("Created report:", report_id)
+
+              if secure_link:
+                  print("Report download link returned immediately.")
+                  return report_id, secure_link
+
+              return report_id, None
+
+          def wait_for_report_download(token, report_id):
+              execution_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledReport/execution/{report_id}"
+
+              for attempt in range(1, 31):
+                  response = get_json(execution_url, token, allow_404_empty=True)
+                  values = response_values(response)
+
+                  if values:
+                      item = values[0]
+                      status = clean_text(item.get("executionStatus") or item.get("ExecutionStatus"))
+                      secure_link = clean_text(item.get("reportAccessSecureLink") or item.get("ReportAccessSecureLink"))
+
+                      print(f"Report status attempt {attempt}: {status or 'Unknown'}")
+
+                      if status.lower() == "completed" and secure_link:
+                          return secure_link
+
+                      if status.lower() in {"failed", "failure", "error", "cancelled", "canceled"}:
+                          print(json.dumps(response, indent=2))
+                          raise RuntimeError(f"Microsoft report failed with status: {status}")
+                  else:
+                      print(f"Report status attempt {attempt}: waiting")
+
+                  time.sleep(10)
+
+              raise RuntimeError("Timed out waiting for Microsoft sales report to complete.")
 
           def summarize_markets(rows):
               counts = defaultdict(int)
 
               for row in rows:
-                  market = country_label(row_market(row))
-                  counts[market] += row_quantity(row)
+                  counts[row_country(row)] += purchase_quantity(row)
 
               if not counts:
                   return "Unknown"
 
               return ", ".join(
-                  f"{market}: {count}"
-                  for market, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+                  f"{country}: {count}"
+                  for country, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
               )
 
-          def summarize_paid_details(rows):
-              paid_rows = [row for row in rows if is_paid_row(row)]
+          def summarize_rows(rows, label):
+              if not rows:
+                  return f"{label}: None"
 
-              if not paid_rows:
-                  return "None"
+              lines = [f"{label}:"]
 
-              lines = []
+              for row in rows:
+                  dt = row_date_utc(row)
+                  date_text = dt.strftime("%Y-%m-%d %H:%M UTC") if dt else clean_text(row.get("DateStamp")) or "Unknown date"
+
+                  usd = usd_amount(row)
+                  local = local_amount(row)
+                  currency = clean_text(row.get("LocalCurrencyCode"))
+
+                  if usd > 0:
+                      price_text = f"${usd:.2f} USD"
+                  elif local > 0 and currency:
+                      price_text = f"{local:.2f} {currency}"
+                  elif local > 0:
+                      price_text = f"{local:.2f} local"
+                  else:
+                      price_text = "$0.00"
+
+                  lines.append(
+                      "- "
+                      f"{purchase_quantity(row)} | "
+                      f"{row_country(row)} | "
+                      f"{date_text} | "
+                      f"{clean_text(row.get('PaymentType')) or 'Unknown payment'} | "
+                      f"{clean_text(row.get('AcquisitionType')) or 'Unknown type'} | "
+                      f"{clean_text(row.get('SkuTypeName')) or 'Unknown SKU'} | "
+                      f"{price_text} | "
+                      f"OrderId: {order_id(row) or 'Unknown'}"
+                  )
+
+              return "\n".join(lines)
+
+          def main():
+              now_utc = datetime.now(timezone.utc)
+              today_pt = datetime.now(ZoneInfo("America/Los_Angeles")).date()
+
+              state = load_state()
+              token = get_access_token()
+
+              query_id = get_or_create_query(token, state)
+              report_id, download_url = create_report(token, query_id)
+
+              if not download_url:
+                  download_url = wait_for_report_download(token, report_id)
+
+              csv_text = download_text(download_url)
+              rows = parse_report_csv(csv_text)
+
+              paid_rows = [row for row in rows if is_paid_sale_row(row)]
+              trial_or_free_rows = [row for row in rows if is_trial_or_free_row(row)]
+              prepaid_code_rows = [row for row in rows if is_prepaid_code_row(row)]
+
+              today_paid_rows = [
+                  row for row in paid_rows
+                  if row_date_pacific(row) == today_pt
+              ]
+
+              today_all_rows = [
+                  row for row in rows
+                  if row_date_pacific(row) == today_pt
+              ]
+
+              seen_paid_order_ids = set(state.get("seen_paid_order_ids", []))
+              new_paid_rows = []
 
               for row in paid_rows:
-                  qty = row_quantity(row)
-                  market = country_label(row_market(row))
-                  acquisition_type = row_acquisition_type(row) or "Unknown"
-                  payment_type = row_payment_type(row) or "Unknown"
-                  device_type = clean_text(row.get("deviceType") or row.get("DeviceType") or "Unknown")
-                  store_client = clean_text(row.get("storeClient") or row.get("StoreClient") or "Unknown")
-                  date = row_date_text(row) or "Unknown"
-                  usd = row_price_usd(row)
-                  local = row_price_local(row)
+                  oid = order_id(row)
 
-                  if usd > 0:
-                      price_text = f"${usd:.2f} USD"
-                  elif local > 0:
-                      price_text = f"{local:.2f} local amount"
-                  else:
-                      price_text = "price not reported"
+                  if not oid:
+                      continue
 
-                  lines.append(
-                      f"- {qty} paid | {market} | {date} | {payment_type} | {acquisition_type} | {device_type} | {store_client} | {price_text}"
+                  if oid not in seen_paid_order_ids:
+                      new_paid_rows.append(row)
+                      seen_paid_order_ids.add(oid)
+
+              if len(seen_paid_order_ids) > 5000:
+                  seen_paid_order_ids = set(list(seen_paid_order_ids)[-5000:])
+
+              paid_total = sum(purchase_quantity(row) for row in paid_rows)
+              paid_today = sum(purchase_quantity(row) for row in today_paid_rows)
+              new_paid_sales = sum(purchase_quantity(row) for row in new_paid_rows)
+
+              trial_or_free_total = sum(purchase_quantity(row) for row in trial_or_free_rows)
+              prepaid_code_total = sum(purchase_quantity(row) for row in prepaid_code_rows)
+              total_acquisitions = sum(purchase_quantity(row) for row in rows)
+              total_today = sum(purchase_quantity(row) for row in today_all_rows)
+              paid_revenue_usd = sum(usd_amount(row) for row in paid_rows)
+
+              state = {
+                  "last_checked": now_utc.isoformat(),
+                  "query_name": QUERY_NAME,
+                  "query_id": query_id,
+                  "report_id": report_id,
+                  "used_api": "consumer/insights/v1.1 ScheduledReport",
+                  "window": "LAST_30_DAYS",
+                  "today_pacific": today_pt.isoformat(),
+                  "paid_total_last_30_days": paid_total,
+                  "paid_today_pacific": paid_today,
+                  "new_paid_sales": new_paid_sales,
+                  "trial_or_free_total_last_30_days": trial_or_free_total,
+                  "prepaid_code_total_last_30_days": prepaid_code_total,
+                  "total_acquisitions_last_30_days": total_acquisitions,
+                  "seen_paid_order_ids": sorted(seen_paid_order_ids),
+              }
+
+              save_state(state)
+
+              print("Used API: consumer/insights/v1.1 ScheduledReport")
+              print("Query name:", QUERY_NAME)
+              print("Query ID:", query_id)
+              print("Report ID:", report_id)
+              print("Rows returned:", len(rows))
+              print("Today Pacific:", today_pt.isoformat())
+              print("Total acquisitions last 30 days:", total_acquisitions)
+              print("Total acquisitions today Pacific:", total_today)
+              print("Trial/free total last 30 days:", trial_or_free_total)
+              print("Prepaid code total last 30 days:", prepaid_code_total)
+              print("Paid sales last 30 days:", paid_total)
+              print("Paid sales today Pacific:", paid_today)
+              print("New paid sales detected:", new_paid_sales)
+              print("Paid revenue USD last 30 days:", f"${paid_revenue_usd:.2f}")
+              print("All acquisition markets:", summarize_markets(rows))
+              print(summarize_rows(new_paid_rows, "New paid sale details"))
+              print(summarize_rows(paid_rows, "All paid sales in report"))
+              print("Raw report rows:")
+              print(json.dumps(rows, indent=2))
+
+              if new_paid_sales > 0:
+                  message = (
+                      "🔥 NEW BLAZIN IPTV PLAYER SALE!\n\n"
+                      f"New paid sales detected: {new_paid_sales}\n"
+                      f"Paid sales today Pacific: {paid_today}\n"
+                      f"Paid sales last 30 days: {paid_total}\n"
+                      f"Reported paid revenue last 30 days: ${paid_revenue_usd:.2f} USD\n"
+                      f"Total acquisitions today Pacific: {total_today}\n"
+                      f"Total acquisitions last 30 days: {total_acquisitions}\n\n"
+                      f"{summarize_rows(new_paid_rows, 'New paid sale details')}\n\n"
+                      "Customer name: Not provided by Microsoft Store analytics API.\n"
+                      f"Checked: {now_utc.strftime('%Y-%m-%d %H:%M UTC')}"
                   )
+                  send_telegram(message)
 
-              return "\n".join(lines)
-
-          def summarize_new_paid_details(new_details):
-              if not new_details:
-                  return "None"
-
-              lines = []
-
-              for item in new_details:
-                  row = item["row"]
-                  delta = item["delta"]
-
-                  market = country_label(row_market(row))
-                  acquisition_type = row_acquisition_type(row) or "Unknown"
-                  payment_type = row_payment_type(row) or "Unknown"
-                  device_type = clean_text(row.get("deviceType") or row.get("DeviceType") or "Unknown")
-                  store_client = clean_text(row.get("storeClient") or row.get("StoreClient") or "Unknown")
-                  date = row_date_text(row) or "Unknown"
-                  usd = row_price_usd(row)
-                  local = row_price_local(row)
-
-                  if usd > 0:
-                      price_text = f"${usd:.2f} USD"
-                  elif local > 0:
-                      price_text = f"{local:.2f} local amount"
-                  else:
-                      price_text = "price not reported"
-
-                  lines.append(
-                      f"- {delta} new sale(s) | {market} | {date} | {payment_type} | {acquisition_type} | {device_type} | {store_client} | {price_text}"
+              elif force_notify:
+                  message = (
+                      "✅ BLAZIN sales check completed.\n\n"
+                      "No new paid sales detected.\n"
+                      f"Paid sales today Pacific: {paid_today}\n"
+                      f"Paid sales last 30 days: {paid_total}\n"
+                      f"Trial/free last 30 days: {trial_or_free_total}\n"
+                      f"Prepaid code last 30 days: {prepaid_code_total}\n"
+                      f"Reported paid revenue last 30 days: ${paid_revenue_usd:.2f} USD\n"
+                      f"Total acquisitions today Pacific: {total_today}\n"
+                      f"Total acquisitions last 30 days: {total_acquisitions}\n"
+                      f"All acquisition markets: {summarize_markets(rows)}\n"
+                      "Customer name: Not provided by Microsoft Store analytics API.\n"
+                      f"Checked: {now_utc.strftime('%Y-%m-%d %H:%M UTC')}"
                   )
+                  send_telegram(message)
 
-              return "\n".join(lines)
-
-          now_utc = datetime.now(timezone.utc)
-          now_pt = datetime.now(ZoneInfo("America/Los_Angeles"))
-          today_pt = now_pt.date()
-
-          start_pt = today_pt - timedelta(days=2)
-          end_utc = now_utc.date()
-
-          start_date = format_mdy(datetime(start_pt.year, start_pt.month, start_pt.day))
-          end_date = format_mdy(datetime(end_utc.year, end_utc.month, end_utc.day))
-
-          token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-
-          token_response_raw = post_form(
-              token_url,
-              {
-                  "client_id": client_id,
-                  "client_secret": client_secret,
-                  "scope": "https://manage.devcenter.microsoft.com/.default",
-                  "grant_type": "client_credentials",
-              },
-              headers={"Content-Type": "application/x-www-form-urlencoded"},
-          )
-
-          token_response = json.loads(token_response_raw)
-          access_token = token_response.get("access_token")
-
-          if not access_token:
-              print(json.dumps(token_response, indent=2))
-              raise SystemExit("Failed to get Microsoft access token.")
-
-          rows, used_groupby = fetch_acquisitions(access_token, start_date, end_date)
-
-          total_acquisitions = sum(row_quantity(row) for row in rows)
-          paid_rows = [row for row in rows if is_paid_row(row)]
-          paid_total = sum(row_quantity(row) for row in paid_rows)
-
-          today_pt_rows = [
-              row for row in rows
-              if parse_row_date(row) == today_pt
-          ]
-          today_pt_paid_rows = [
-              row for row in today_pt_rows
-              if is_paid_row(row)
-          ]
-
-          total_today_pt = sum(row_quantity(row) for row in today_pt_rows)
-          paid_today_pt = sum(row_quantity(row) for row in today_pt_paid_rows)
-
-          state = load_state()
-          seen_paid_row_quantities = state.get("seen_paid_row_quantities", {})
-
-          current_paid_quantities = defaultdict(int)
-          row_by_fingerprint = {}
-
-          for row in paid_rows:
-              fingerprint = row_fingerprint(row)
-              current_paid_quantities[fingerprint] += row_quantity(row)
-              row_by_fingerprint[fingerprint] = row
-
-          new_paid_sales = 0
-          new_paid_details = []
-
-          for fingerprint, qty in current_paid_quantities.items():
-              previous_qty = int(seen_paid_row_quantities.get(fingerprint, 0) or 0)
-              delta = max(0, qty - previous_qty)
-
-              if delta > 0:
-                  new_paid_sales += delta
-                  new_paid_details.append({
-                      "delta": delta,
-                      "row": row_by_fingerprint[fingerprint],
-                  })
-
-              seen_paid_row_quantities[fingerprint] = max(previous_qty, qty)
-
-          if len(seen_paid_row_quantities) > 5000:
-              seen_paid_row_quantities = dict(list(seen_paid_row_quantities.items())[-5000:])
-
-          state = {
-              "last_checked": now_utc.isoformat(),
-              "date_range_checked": f"{start_date} to {end_date}",
-              "today_pacific": today_pt.isoformat(),
-              "used_endpoint": "v1.0/my/analytics/acquisitions",
-              "used_groupby": used_groupby or "none",
-              "paid_total_in_range": paid_total,
-              "total_acquisitions_in_range": total_acquisitions,
-              "paid_today_pacific_date": paid_today_pt,
-              "total_today_pacific_date": total_today_pt,
-              "seen_paid_row_quantities": seen_paid_row_quantities,
-          }
-
-          save_state(state)
-
-          print("Endpoint used: v1.0/my/analytics/acquisitions")
-          print("Date range checked:", state["date_range_checked"])
-          print("Today Pacific date:", state["today_pacific"])
-          print("Used groupby:", used_groupby or "none")
-          print("Rows returned:", len(rows))
-          print("Total acquisitions in checked range:", total_acquisitions)
-          print("Paid sales in checked range:", paid_total)
-          print("Total acquisitions for today's Pacific date:", total_today_pt)
-          print("Paid sales for today's Pacific date:", paid_today_pt)
-          print("New paid sales detected:", new_paid_sales)
-          print("All acquisition markets:", summarize_markets(rows))
-          print("All paid sale details:")
-          print(summarize_paid_details(rows))
-          print("New paid sale details:")
-          print(summarize_new_paid_details(new_paid_details))
-          print("Raw rows:")
-          print(json.dumps(rows, indent=2))
-
-          if new_paid_sales > 0:
-              message = (
-                  "🔥 NEW BLAZIN IPTV PLAYER SALE!\n\n"
-                  f"New paid sales detected: {new_paid_sales}\n"
-                  f"Paid sales for today's Pacific date: {paid_today_pt}\n"
-                  f"Paid sales in checked range: {paid_total}\n"
-                  f"Total acquisitions for today's Pacific date: {total_today_pt}\n"
-                  f"Total acquisitions in checked range: {total_acquisitions}\n\n"
-                  f"New paid sale details:\n{summarize_new_paid_details(new_paid_details)}\n\n"
-                  "Customer name: Not provided by Microsoft Store analytics API.\n"
-                  f"Checked: {now_utc.strftime('%Y-%m-%d %H:%M UTC')}"
-              )
-              send_telegram(message)
-
-          elif force_notify:
-              message = (
-                  "✅ BLAZIN sales check completed.\n\n"
-                  "No new paid sales detected.\n"
-                  f"Paid sales for today's Pacific date: {paid_today_pt}\n"
-                  f"Paid sales in checked range: {paid_total}\n"
-                  f"Total acquisitions for today's Pacific date: {total_today_pt}\n"
-                  f"Total acquisitions in checked range: {total_acquisitions}\n"
-                  f"All acquisition markets: {summarize_markets(rows)}\n"
-                  "Customer name: Not provided by Microsoft Store analytics API.\n"
-                  f"Checked: {now_utc.strftime('%Y-%m-%d %H:%M UTC')}"
-              )
-              send_telegram(message)
-
+          main()
           PY
 
       - name: Save sales state
