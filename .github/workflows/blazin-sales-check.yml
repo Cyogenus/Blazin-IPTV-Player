@@ -26,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check Microsoft Store acquisitions
+      - name: Check Microsoft Store app acquisitions
         shell: bash
         env:
           MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
@@ -98,47 +98,41 @@ jobs:
               with open(STATE_FILE, "w", encoding="utf-8") as f:
                   json.dump(state, f, indent=2, sort_keys=True)
 
-          def is_paid_row(row):
-              text = " ".join(str(v).lower() for v in row.values() if v is not None)
-
-              if "trial" in text:
-                  return False
-
-              if "free" in text:
-                  return False
-
-              paid_words = [
-                  "paid",
-                  "purchase",
-                  "sale",
-                  "credit card",
-                  "paypal",
-                  "carrier billing",
-                  "gift card",
-              ]
-
-              return any(word in text for word in paid_words)
-
           def row_quantity(row):
+              try:
+                  return int(row.get("acquisitionQuantity", 0) or 0)
+              except Exception:
+                  return 0
+
+          def row_price(row):
               for key in [
-                  "acquisitionQuantity",
-                  "AcquisitionQuantity",
-                  "quantity",
-                  "Quantity",
-                  "count",
-                  "Count",
+                  "purchasePriceUSDAmount",
+                  "purchasePriceLocalAmount",
+                  "purchaseTaxUSDAmount",
+                  "purchaseTaxLocalAmount",
               ]:
-                  if key in row:
-                      try:
-                          return int(row[key])
-                      except Exception:
-                          return 0
-              return 0
+                  try:
+                      value = float(row.get(key, 0) or 0)
+                      if value > 0:
+                          return value
+                  except Exception:
+                      pass
+              return 0.0
+
+          def is_paid_row(row):
+              acquisition_type = str(row.get("acquisitionType", "")).strip().lower()
+
+              if acquisition_type == "paid":
+                  return True
+
+              if acquisition_type in {"free", "trial", "promotional code", "private audience"}:
+                  return False
+
+              return row_price(row) > 0
 
           now = datetime.now(timezone.utc)
-
-          # Check yesterday + today to avoid Microsoft Store reporting delays and UTC date mismatch.
           start = now - timedelta(days=1)
+
           start_date = start.strftime("%-m/%-d/%Y")
           end_date = now.strftime("%-m/%-d/%Y")
 
@@ -163,12 +157,13 @@ jobs:
               raise SystemExit("Failed to get Microsoft access token.")
 
           api_url = (
-              "https://manage.devcenter.microsoft.com/v1.0/my/analytics/acquisitions?"
+              "https://manage.devcenter.microsoft.com/v1.0/my/analytics/appacquisitions?"
               + urllib.parse.urlencode({
                   "applicationId": app_id,
                   "startDate": start_date,
                   "endDate": end_date,
                   "aggregationLevel": "day",
+                  "groupby": "date,applicationName,acquisitionType,market,deviceType,storeClient,orderName",
               })
           )
 
@@ -177,7 +172,7 @@ jobs:
 
           if not isinstance(rows, list):
               print(json.dumps(data, indent=2))
-              raise SystemExit("Unexpected Microsoft acquisitions response format.")
+              raise SystemExit("Unexpected Microsoft app acquisitions response format.")
 
           total_acquisitions = sum(row_quantity(row) for row in rows)
           paid_total = sum(row_quantity(row) for row in rows if is_paid_row(row))
@@ -187,7 +182,6 @@ jobs:
           previous_total_acquisitions = int(state.get("last_total_acquisitions", 0))
 
           new_paid_sales = max(0, paid_total - previous_paid_total)
-          new_total_acquisitions = max(0, total_acquisitions - previous_total_acquisitions)
 
           state = {
               "last_paid_total": paid_total,
@@ -204,6 +198,10 @@ jobs:
           print("Paid sales in range:", paid_total)
           print("Previous paid sales in range:", previous_paid_total)
           print("New paid sales detected:", new_paid_sales)
+
+          paid_rows = [row for row in rows if is_paid_row(row)]
+          print("Paid rows:")
+          print(json.dumps(paid_rows, indent=2))
 
           if new_paid_sales > 0:
               message = (
