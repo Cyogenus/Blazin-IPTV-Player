@@ -13,7 +13,7 @@ on:
           - "true"
 
   schedule:
-    - cron: "0 * * * *"
+    - cron: "17 * * * *"
 
 permissions:
   contents: write
@@ -44,8 +44,6 @@ jobs:
           python3 <<'PY'
           import json
           import os
-          import subprocess
-          import sys
           import urllib.parse
           import urllib.request
           from datetime import datetime, timedelta, timezone
@@ -138,7 +136,10 @@ jobs:
               return 0
 
           now = datetime.now(timezone.utc)
-          start_date = now.strftime("%-m/%-d/%Y")
+
+          # Check yesterday + today to avoid Microsoft Store reporting delays and UTC date mismatch.
+          start = now - timedelta(days=1)
+          start_date = start.strftime("%-m/%-d/%Y")
           end_date = now.strftime("%-m/%-d/%Y")
 
           token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
@@ -192,23 +193,24 @@ jobs:
               "last_paid_total": paid_total,
               "last_total_acquisitions": total_acquisitions,
               "last_checked": now.isoformat(),
-              "date_checked_utc": now.strftime("%Y-%m-%d"),
+              "date_range_checked_utc": f"{start.strftime('%Y-%m-%d')} to {now.strftime('%Y-%m-%d')}",
           }
 
           save_state(state)
 
+          print("Date range checked UTC:", state["date_range_checked_utc"])
           print("Rows returned:", len(rows))
-          print("Total acquisitions today:", total_acquisitions)
-          print("Paid sales today:", paid_total)
-          print("Previous paid sales today:", previous_paid_total)
+          print("Total acquisitions in range:", total_acquisitions)
+          print("Paid sales in range:", paid_total)
+          print("Previous paid sales in range:", previous_paid_total)
           print("New paid sales detected:", new_paid_sales)
 
           if new_paid_sales > 0:
               message = (
                   "🔥 NEW BLAZIN IPTV PLAYER SALE!\n\n"
                   f"New paid sales detected: {new_paid_sales}\n"
-                  f"Paid sales today: {paid_total}\n"
-                  f"Total acquisitions today: {total_acquisitions}\n"
+                  f"Paid sales in checked range: {paid_total}\n"
+                  f"Total acquisitions in checked range: {total_acquisitions}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
               send_telegram(message)
@@ -217,8 +219,8 @@ jobs:
               message = (
                   "✅ BLAZIN sales check completed.\n\n"
                   "No new paid sales detected.\n"
-                  f"Paid sales today: {paid_total}\n"
-                  f"Total acquisitions today: {total_acquisitions}\n"
+                  f"Paid sales in checked range: {paid_total}\n"
+                  f"Total acquisitions in checked range: {total_acquisitions}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
               send_telegram(message)
