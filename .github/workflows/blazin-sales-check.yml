@@ -26,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check Microsoft Store acquisitions
+      - name: Check Microsoft Store sales
         shell: bash
         env:
           MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
@@ -45,9 +45,10 @@ jobs:
           import os
           import urllib.parse
           import urllib.request
-          from datetime import datetime, timezone
+          from datetime import datetime, timedelta, timezone
 
           STATE_FILE = ".github/state/blazin_sales_state.json"
+          WINDOW_DAYS = 30
 
           tenant_id = os.environ["MS_TENANT_ID"]
           client_id = os.environ["MS_CLIENT_ID"]
@@ -56,6 +57,9 @@ jobs:
           telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
           telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
           force_notify = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
+
+          def ms_date(dt):
+              return f"{dt.month}/{dt.day}/{dt.year}"
 
           def post_form(url, data, headers=None):
               encoded = urllib.parse.urlencode(data).encode("utf-8")
@@ -84,11 +88,11 @@ jobs:
           def load_state():
               if not os.path.exists(STATE_FILE):
                   return {
-                      "date_checked_utc": None,
-                      "last_paid_total": 0,
-                      "last_trial_total": 0,
-                      "last_free_total": 0,
-                      "last_total_acquisitions": 0,
+                      "last_paid_quantity_30d": 0,
+                      "last_gross_sales_usd_30d": 0.0,
+                      "last_total_acquisitions_30d": 0,
+                      "last_trials_30d": 0,
+                      "last_checked": None,
                   }
               with open(STATE_FILE, "r", encoding="utf-8") as f:
                   return json.load(f)
@@ -103,35 +107,38 @@ jobs:
               except Exception:
                   return 0
 
-          def row_price(row):
+          def price_usd(row):
               try:
-                  usd = float(row.get("purchasePriceUSDAmount") or 0)
-                  local = float(row.get("purchasePriceLocalAmount") or 0)
-                  return max(usd, local)
+                  return float(row.get("purchasePriceUSDAmount") or 0)
+              except Exception:
+                  return 0.0
+
+          def price_local(row):
+              try:
+                  return float(row.get("purchasePriceLocalAmount") or 0)
               except Exception:
                   return 0.0
 
           def acquisition_type(row):
               return str(row.get("acquisitionType", "")).strip().lower()
 
+          def is_trial_row(row):
+              return acquisition_type(row) == "trial"
+
           def is_paid_row(row):
-              return row_price(row) > 0 or acquisition_type(row) in {
+              if price_usd(row) > 0 or price_local(row) > 0:
+                  return True
+
+              return acquisition_type(row) in {
                   "paid",
                   "purchase",
                   "initial purchase",
                   "in-app purchase",
+                  "app purchase",
               }
 
-          def is_trial_row(row):
-              return acquisition_type(row) == "trial"
-
-          def is_free_row(row):
-              return not is_paid_row(row) and not is_trial_row(row)
-
           now = datetime.now(timezone.utc)
-          today_utc = now.strftime("%Y-%m-%d")
-          start_date = now.strftime("%-m/%-d/%Y")
-          end_date = now.strftime("%-m/%-d/%Y")
+          start_dt = now - timedelta(days=WINDOW_DAYS - 1)
 
           token_response_raw = post_form(
               f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
@@ -153,8 +160,8 @@ jobs:
 
           query = {
               "applicationId": app_id,
-              "startDate": start_date,
-              "endDate": end_date,
+              "startDate": ms_date(start_dt),
+              "endDate": ms_date(now),
               "aggregationLevel": "day",
               "groupby": "date,applicationName,acquisitionType,market,deviceType,storeClient,osVersion",
           }
@@ -172,78 +179,82 @@ jobs:
               raise SystemExit("Unexpected Microsoft acquisitions response format.")
 
           total_acquisitions = sum(row_quantity(row) for row in rows)
-          paid_total = sum(row_quantity(row) for row in rows if is_paid_row(row))
           trial_total = sum(row_quantity(row) for row in rows if is_trial_row(row))
-          free_total = sum(row_quantity(row) for row in rows if is_free_row(row))
+          paid_rows = [row for row in rows if is_paid_row(row)]
+          paid_quantity = sum(row_quantity(row) for row in paid_rows)
+          gross_sales_usd = round(sum(price_usd(row) for row in paid_rows), 2)
 
           state = load_state()
 
-          if state.get("date_checked_utc") != today_utc:
-              previous_paid_total = 0
-              previous_trial_total = 0
-              previous_free_total = 0
-              previous_total_acquisitions = 0
-          else:
-              previous_paid_total = int(state.get("last_paid_total", 0))
-              previous_trial_total = int(state.get("last_trial_total", 0))
-              previous_free_total = int(state.get("last_free_total", 0))
-              previous_total_acquisitions = int(state.get("last_total_acquisitions", 0))
+          previous_paid_quantity = int(state.get("last_paid_quantity_30d", 0))
+          previous_gross_sales = float(state.get("last_gross_sales_usd_30d", 0.0))
+          previous_total_acquisitions = int(state.get("last_total_acquisitions_30d", 0))
+          previous_trials = int(state.get("last_trials_30d", 0))
 
-          new_paid_sales = max(0, paid_total - previous_paid_total)
-          new_trials = max(0, trial_total - previous_trial_total)
-          new_free = max(0, free_total - previous_free_total)
-          new_total = max(0, total_acquisitions - previous_total_acquisitions)
+          new_paid_quantity = max(0, paid_quantity - previous_paid_quantity)
+          new_gross_sales = round(max(0.0, gross_sales_usd - previous_gross_sales), 2)
+          new_total_acquisitions = max(0, total_acquisitions - previous_total_acquisitions)
+          new_trials = max(0, trial_total - previous_trials)
 
           save_state({
-              "date_checked_utc": today_utc,
               "last_checked": now.isoformat(),
-              "last_paid_total": paid_total,
-              "last_trial_total": trial_total,
-              "last_free_total": free_total,
-              "last_total_acquisitions": total_acquisitions,
+              "window_days": WINDOW_DAYS,
+              "window_start_utc": start_dt.strftime("%Y-%m-%d"),
+              "window_end_utc": now.strftime("%Y-%m-%d"),
+              "last_paid_quantity_30d": paid_quantity,
+              "last_gross_sales_usd_30d": gross_sales_usd,
+              "last_total_acquisitions_30d": total_acquisitions,
+              "last_trials_30d": trial_total,
           })
 
           print("Rows returned:", len(rows))
-          print("Paid sales today:", paid_total)
-          print("Trials today:", trial_total)
-          print("Free/other acquisitions today:", free_total)
-          print("Total acquisitions today:", total_acquisitions)
-          print("New paid sales:", new_paid_sales)
-          print("New trials:", new_trials)
-          print("New free/other:", new_free)
+          print("Window start:", start_dt.strftime("%Y-%m-%d"))
+          print("Window end:", now.strftime("%Y-%m-%d"))
+          print("Total acquisitions 30d:", total_acquisitions)
+          print("Trials 30d:", trial_total)
+          print("Paid quantity 30d:", paid_quantity)
+          print("Gross sales USD 30d:", gross_sales_usd)
+          print("New paid quantity:", new_paid_quantity)
+          print("New gross sales USD:", new_gross_sales)
 
           if rows:
-              print("DEBUG: Sample row:", json.dumps(rows[0], indent=2))
+              print("DEBUG: First row:", json.dumps(rows[0], indent=2))
 
-          if new_paid_sales > 0:
+          if paid_rows:
+              print("DEBUG: Paid rows:")
+              print(json.dumps(paid_rows, indent=2))
+
+          if new_paid_quantity > 0 or new_gross_sales > 0:
               send_telegram(
                   "🔥 NEW BLAZIN IPTV PLAYER PAID SALE!\n\n"
-                  f"New paid sales: {new_paid_sales}\n"
-                  f"Paid sales today: {paid_total}\n"
-                  f"Trials today: {trial_total}\n"
-                  f"Total acquisitions today: {total_acquisitions}\n"
+                  f"New paid sales: {new_paid_quantity}\n"
+                  f"New gross sales: ${new_gross_sales:.2f}\n"
+                  f"Paid sales 30d: {paid_quantity}\n"
+                  f"Gross sales 30d: ${gross_sales_usd:.2f}\n"
+                  f"Trials 30d: {trial_total}\n"
+                  f"Total acquisitions 30d: {total_acquisitions}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
 
-          elif new_trials > 0 or new_free > 0:
+          elif new_trials > 0:
               send_telegram(
-                  "📥 NEW BLAZIN IPTV PLAYER ACQUISITION!\n\n"
+                  "📥 NEW BLAZIN IPTV PLAYER TRIAL!\n\n"
                   f"New trials: {new_trials}\n"
-                  f"New free/other acquisitions: {new_free}\n"
-                  f"Trials today: {trial_total}\n"
-                  f"Paid sales today: {paid_total}\n"
-                  f"Total acquisitions today: {total_acquisitions}\n"
+                  f"Trials 30d: {trial_total}\n"
+                  f"Paid sales 30d: {paid_quantity}\n"
+                  f"Gross sales 30d: ${gross_sales_usd:.2f}\n"
+                  f"Total acquisitions 30d: {total_acquisitions}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
 
           elif force_notify:
               send_telegram(
                   "✅ BLAZIN sales check completed.\n\n"
-                  "No new activity detected.\n"
-                  f"Paid sales today: {paid_total}\n"
-                  f"Trials today: {trial_total}\n"
-                  f"Free/other acquisitions today: {free_total}\n"
-                  f"Total acquisitions today: {total_acquisitions}\n"
+                  "No new paid sales detected.\n"
+                  f"Paid sales 30d: {paid_quantity}\n"
+                  f"Gross sales 30d: ${gross_sales_usd:.2f}\n"
+                  f"Trials 30d: {trial_total}\n"
+                  f"Total acquisitions 30d: {total_acquisitions}\n"
                   f"Rows returned: {len(rows)}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
