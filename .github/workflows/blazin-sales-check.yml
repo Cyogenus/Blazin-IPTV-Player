@@ -70,7 +70,9 @@ jobs:
           force_notify = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
 
           BASE_URL = "https://manage.devcenter.microsoft.com"
-          QUERY_NAME = "BLAZIN_SALES_PURCHASE_QUANTITY_V3"
+
+          # Microsoft only allows query names with letters, numbers, and spaces.
+          QUERY_NAME = "BLAZIN Sales Purchase Quantity V4"
 
           SALES_QUERY = (
               "SELECT "
@@ -207,6 +209,7 @@ jobs:
                   return {
                       "seen_paid_row_quantities": {},
                       "query_id": None,
+                      "query_name": None,
                       "last_checked": None,
                   }
 
@@ -365,8 +368,9 @@ jobs:
 
           def get_or_create_query(token, state):
               saved_query_id = clean_text(state.get("query_id"))
+              saved_query_name = clean_text(state.get("query_name"))
 
-              if saved_query_id:
+              if saved_query_id and saved_query_name == QUERY_NAME:
                   print("Using query ID from state:", saved_query_id)
                   return saved_query_id
 
@@ -442,39 +446,25 @@ jobs:
               return report_id, None
 
           def wait_for_report_download(token, report_id):
-              base_execution_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledReport/execution/{report_id}"
+              execution_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledReport/execution/{report_id}"
 
               for attempt in range(1, 31):
-                  completed_url = base_execution_url + "?" + urllib.parse.urlencode({
-                      "executionStatus": "Completed",
-                      "getLatestExecution": "true",
-                  })
+                  response = get_json(execution_url, token, allow_404_empty=True)
+                  values = response_values(response)
 
-                  completed = get_json(completed_url, token, allow_404_empty=True)
-                  completed_values = response_values(completed)
-
-                  if completed_values:
-                      item = completed_values[0]
+                  if values:
+                      item = values[0]
                       status = clean_text(item.get("executionStatus") or item.get("ExecutionStatus"))
                       secure_link = clean_text(item.get("reportAccessSecureLink") or item.get("ReportAccessSecureLink"))
 
-                      print(f"Completed report status attempt {attempt}: {status or 'Unknown'}")
+                      print(f"Report status attempt {attempt}: {status or 'Unknown'}")
 
                       if status.lower() == "completed" and secure_link:
                           return secure_link
 
-                  pending_url = base_execution_url + "?" + urllib.parse.urlencode({
-                      "executionStatus": "Pending",
-                      "getLatestExecution": "true",
-                  })
-
-                  pending = get_json(pending_url, token, allow_404_empty=True)
-                  pending_values = response_values(pending)
-
-                  if pending_values:
-                      item = pending_values[0]
-                      status = clean_text(item.get("executionStatus") or item.get("ExecutionStatus"))
-                      print(f"Pending report status attempt {attempt}: {status or 'Unknown'}")
+                      if status.lower() in {"failed", "failure", "error", "cancelled", "canceled"}:
+                          print(json.dumps(response, indent=2))
+                          raise RuntimeError(f"Microsoft report failed with status: {status}")
                   else:
                       print(f"Report status attempt {attempt}: waiting")
 
