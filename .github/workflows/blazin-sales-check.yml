@@ -48,7 +48,7 @@ jobs:
           from datetime import datetime, timedelta, timezone
 
           STATE_FILE = ".github/state/blazin_sales_state.json"
-          WINDOW_DAYS = 1
+          WINDOW_DAYS = 2
 
           tenant_id = os.environ["MS_TENANT_ID"]
           client_id = os.environ["MS_CLIENT_ID"]
