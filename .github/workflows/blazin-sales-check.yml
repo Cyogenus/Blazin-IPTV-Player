@@ -18,6 +18,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: blazin-sales-check
+  cancel-in-progress: false
+
 jobs:
   check-sales:
     runs-on: ubuntu-latest
@@ -44,8 +48,10 @@ jobs:
           python3 <<'PY'
           import json
           import os
+          import urllib.error
           import urllib.parse
           import urllib.request
+          from collections import defaultdict
           from datetime import datetime, timedelta, timezone
 
           STATE_FILE = ".github/state/blazin_sales_state.json"
@@ -58,11 +64,67 @@ jobs:
           telegram_chat_id = os.environ["TELEGRAM_CHAT_ID"]
           force_notify = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
 
+          COUNTRY_NAMES = {
+              "US": "United States",
+              "CA": "Canada",
+              "GB": "United Kingdom",
+              "AU": "Australia",
+              "NZ": "New Zealand",
+              "DE": "Germany",
+              "FR": "France",
+              "ES": "Spain",
+              "IT": "Italy",
+              "NL": "Netherlands",
+              "BE": "Belgium",
+              "SE": "Sweden",
+              "NO": "Norway",
+              "DK": "Denmark",
+              "FI": "Finland",
+              "IE": "Ireland",
+              "CH": "Switzerland",
+              "AT": "Austria",
+              "PL": "Poland",
+              "BR": "Brazil",
+              "MX": "Mexico",
+              "IN": "India",
+              "PK": "Pakistan",
+              "BD": "Bangladesh",
+              "AF": "Afghanistan",
+              "TR": "Turkey",
+              "SA": "Saudi Arabia",
+              "AE": "United Arab Emirates",
+              "ZA": "South Africa",
+              "JP": "Japan",
+              "KR": "South Korea",
+              "CN": "China",
+              "TW": "Taiwan",
+              "PH": "Philippines",
+              "MY": "Malaysia",
+              "SG": "Singapore",
+              "ID": "Indonesia",
+              "TH": "Thailand",
+              "VN": "Vietnam",
+          }
+
+          def country_label(code):
+              code = str(code or "Unknown").strip().upper()
+              if not code or code == "UNKNOWN":
+                  return "Unknown"
+              name = COUNTRY_NAMES.get(code)
+              if name:
+                  return f"{name} ({code})"
+              return code
+
           def post_form(url, data, headers=None):
               encoded = urllib.parse.urlencode(data).encode("utf-8")
               req = urllib.request.Request(url, data=encoded, headers=headers or {}, method="POST")
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  return response.read().decode("utf-8")
+
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return response.read().decode("utf-8")
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode("utf-8", errors="replace")
+                  raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
 
           def get_json(url, token):
               req = urllib.request.Request(
@@ -73,8 +135,13 @@ jobs:
                   },
                   method="GET",
               )
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  return json.loads(response.read().decode("utf-8"))
+
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.loads(response.read().decode("utf-8"))
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode("utf-8", errors="replace")
+                  raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
 
           def send_telegram(text):
               url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
@@ -104,20 +171,17 @@ jobs:
               except Exception:
                   return 0
 
-          def row_price(row):
-              for key in [
-                  "purchasePriceUSDAmount",
-                  "purchasePriceLocalAmount",
-                  "purchaseTaxUSDAmount",
-                  "purchaseTaxLocalAmount",
-              ]:
-                  try:
-                      value = float(row.get(key, 0) or 0)
-                      if value > 0:
-                          return value
-                  except Exception:
-                      pass
-              return 0.0
+          def row_price_usd(row):
+              try:
+                  return float(row.get("purchasePriceUSDAmount", 0) or 0)
+              except Exception:
+                  return 0.0
+
+          def row_price_local(row):
+              try:
+                  return float(row.get("purchasePriceLocalAmount", 0) or 0)
+              except Exception:
+                  return 0.0
 
           def is_paid_row(row):
               acquisition_type = str(row.get("acquisitionType", "")).strip().lower()
@@ -125,10 +189,125 @@ jobs:
               if acquisition_type == "paid":
                   return True
 
-              if acquisition_type in {"free", "trial", "promotional code", "private audience"}:
+              if acquisition_type in {
+                  "free",
+                  "trial",
+                  "promotional code",
+                  "private audience",
+                  "pre order",
+                  "xbox game pass",
+                  "game pass",
+                  "disk",
+                  "prepaid code",
+              }:
                   return False
 
-              return row_price(row) > 0
+              return row_price_usd(row) > 0 or row_price_local(row) > 0
+
+          def build_app_acquisitions_url(groupby):
+              params = {
+                  "applicationId": app_id,
+                  "startDate": start_date,
+                  "endDate": end_date,
+                  "aggregationLevel": "day",
+                  "top": 10000,
+                  "skip": 0,
+              }
+
+              if groupby:
+                  params["groupby"] = groupby
+
+              return (
+                  "https://manage.devcenter.microsoft.com/v1.0/my/analytics/appacquisitions?"
+                  + urllib.parse.urlencode(params)
+              )
+
+          def fetch_app_acquisitions(token):
+              groupby_attempts = [
+                  "date,applicationName,acquisitionType,market,deviceType,storeClient",
+                  "date,applicationName,acquisitionType,market",
+                  "date,acquisitionType,market",
+                  "date,acquisitionType",
+                  None,
+              ]
+
+              last_error = None
+
+              for groupby in groupby_attempts:
+                  try:
+                      api_url = build_app_acquisitions_url(groupby)
+                      print("Trying groupby:", groupby or "none")
+
+                      first_page = get_json(api_url, token)
+                      rows = first_page.get("Value") or first_page.get("value") or []
+
+                      if not isinstance(rows, list):
+                          print(json.dumps(first_page, indent=2))
+                          raise RuntimeError("Unexpected Microsoft app acquisitions response format.")
+
+                      data_freshness = first_page.get("DataFreshnessTimestamp") or first_page.get("dataFreshnessTimestamp")
+                      total_count = first_page.get("TotalCount") or first_page.get("totalCount")
+
+                      next_link = first_page.get("@nextLink") or first_page.get("nextLink")
+                      while next_link:
+                          next_page = get_json(next_link, token)
+                          next_rows = next_page.get("Value") or next_page.get("value") or []
+                          if isinstance(next_rows, list):
+                              rows.extend(next_rows)
+                          next_link = next_page.get("@nextLink") or next_page.get("nextLink")
+
+                      return rows, groupby, data_freshness, total_count
+
+                  except Exception as e:
+                      last_error = e
+                      print("API attempt failed:", str(e))
+
+              raise last_error
+
+          def summarize_markets(rows):
+              counts = defaultdict(int)
+
+              for row in rows:
+                  market = row.get("market", "Unknown")
+                  counts[country_label(market)] += row_quantity(row)
+
+              if not counts:
+                  return "Unknown"
+
+              parts = [
+                  f"{market}: {count}"
+                  for market, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+              ]
+
+              return ", ".join(parts)
+
+          def summarize_paid_details(rows):
+              paid_rows = [row for row in rows if is_paid_row(row)]
+
+              if not paid_rows:
+                  return "None"
+
+              lines = []
+
+              for row in paid_rows:
+                  qty = row_quantity(row)
+                  market = country_label(row.get("market", "Unknown"))
+                  acquisition_type = row.get("acquisitionType", "Unknown")
+                  device_type = row.get("deviceType", "Unknown")
+                  store_client = row.get("storeClient", "Unknown")
+                  date = row.get("date", "Unknown")
+                  usd = row_price_usd(row)
+
+                  if usd > 0:
+                      price_text = f"${usd:.2f} reported USD"
+                  else:
+                      price_text = "price not reported"
+
+                  lines.append(
+                      f"- {qty} paid | {market} | {date} | {device_type} | {store_client} | {acquisition_type} | {price_text}"
+                  )
+
+              return "\n".join(lines)
 
           now = datetime.now(timezone.utc)
           start = now - timedelta(days=1)
@@ -156,52 +335,47 @@ jobs:
               print(json.dumps(token_response, indent=2))
               raise SystemExit("Failed to get Microsoft access token.")
 
-          api_url = (
-              "https://manage.devcenter.microsoft.com/v1.0/my/analytics/appacquisitions?"
-              + urllib.parse.urlencode({
-                  "applicationId": app_id,
-                  "startDate": start_date,
-                  "endDate": end_date,
-                  "aggregationLevel": "day",
-                  "groupby": "date,applicationName,acquisitionType,market,deviceType,storeClient,orderName",
-              })
-          )
-
-          data = get_json(api_url, access_token)
-          rows = data.get("Value") or data.get("value") or []
-
-          if not isinstance(rows, list):
-              print(json.dumps(data, indent=2))
-              raise SystemExit("Unexpected Microsoft app acquisitions response format.")
+          rows, used_groupby, data_freshness, total_count = fetch_app_acquisitions(access_token)
 
           total_acquisitions = sum(row_quantity(row) for row in rows)
-          paid_total = sum(row_quantity(row) for row in rows if is_paid_row(row))
+          paid_rows = [row for row in rows if is_paid_row(row)]
+          paid_total = sum(row_quantity(row) for row in paid_rows)
 
           state = load_state()
           previous_paid_total = int(state.get("last_paid_total", 0))
           previous_total_acquisitions = int(state.get("last_total_acquisitions", 0))
 
           new_paid_sales = max(0, paid_total - previous_paid_total)
+          new_total_acquisitions = max(0, total_acquisitions - previous_total_acquisitions)
+
+          date_range_text = f"{start.strftime('%Y-%m-%d')} to {now.strftime('%Y-%m-%d')}"
 
           state = {
               "last_paid_total": paid_total,
               "last_total_acquisitions": total_acquisitions,
               "last_checked": now.isoformat(),
-              "date_range_checked_utc": f"{start.strftime('%Y-%m-%d')} to {now.strftime('%Y-%m-%d')}",
+              "date_range_checked_utc": date_range_text,
+              "used_groupby": used_groupby or "none",
+              "data_freshness_timestamp": data_freshness,
           }
 
           save_state(state)
 
-          print("Date range checked UTC:", state["date_range_checked_utc"])
+          print("Date range checked UTC:", date_range_text)
+          print("Used groupby:", used_groupby or "none")
+          print("Data freshness timestamp:", data_freshness)
+          print("TotalCount from API:", total_count)
           print("Rows returned:", len(rows))
           print("Total acquisitions in range:", total_acquisitions)
+          print("New total acquisitions detected:", new_total_acquisitions)
           print("Paid sales in range:", paid_total)
           print("Previous paid sales in range:", previous_paid_total)
           print("New paid sales detected:", new_paid_sales)
-
-          paid_rows = [row for row in rows if is_paid_row(row)]
-          print("Paid rows:")
-          print(json.dumps(paid_rows, indent=2))
+          print("All acquisition markets:", summarize_markets(rows))
+          print("Paid acquisition details:")
+          print(summarize_paid_details(rows))
+          print("Raw rows:")
+          print(json.dumps(rows, indent=2))
 
           if new_paid_sales > 0:
               message = (
@@ -209,6 +383,9 @@ jobs:
                   f"New paid sales detected: {new_paid_sales}\n"
                   f"Paid sales in checked range: {paid_total}\n"
                   f"Total acquisitions in checked range: {total_acquisitions}\n"
+                  f"Paid sale details:\n{summarize_paid_details(rows)}\n\n"
+                  "Customer name: Not provided by Microsoft Store analytics API.\n"
+                  f"Data freshness: {data_freshness or 'Unknown'}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
               send_telegram(message)
@@ -219,6 +396,9 @@ jobs:
                   "No new paid sales detected.\n"
                   f"Paid sales in checked range: {paid_total}\n"
                   f"Total acquisitions in checked range: {total_acquisitions}\n"
+                  f"All acquisition markets: {summarize_markets(rows)}\n"
+                  "Customer name: Not provided by Microsoft Store analytics API.\n"
+                  f"Data freshness: {data_freshness or 'Unknown'}\n"
                   f"Checked: {now.strftime('%Y-%m-%d %H:%M UTC')}"
               )
               send_telegram(message)
@@ -228,7 +408,7 @@ jobs:
       - name: Save sales state
         shell: bash
         run: |
-          if git diff --quiet .github/state/blazin_sales_state.json; then
+          if git diff --quiet -- .github/state/blazin_sales_state.json; then
             echo "No state changes to commit."
             exit 0
           fi
