@@ -70,16 +70,17 @@ jobs:
           force_notify = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
 
           BASE_URL = "https://manage.devcenter.microsoft.com"
-          QUERY_NAME = "BLAZIN_SALES_PURCHASE_QUANTITY_V1"
+          QUERY_NAME = "BLAZIN_SALES_PURCHASE_QUANTITY_V3"
 
           SALES_QUERY = (
               "SELECT "
               "TitleId, ProductId, XboxProductId, ProductTypeName, TitleName, "
               "CatalogId, SandboxId, SkuId, SkuTypeName, SkuDisplayName, "
               "AvailabilityId, RegionName, CountryName, Market, PaymentType, "
-              "StoreClientName, StoreClientCategory, AcquisitionType, PurchaseTaxType, "
-              "LocalCurrencyCode, SupportedPlatform, Age, Gender, OsVersion, DeviceType, "
-              "DateStamp, PurchaseQuantity, PurchasePriceUSDAmount, PurchaseTaxUSDAmount, "
+              "StoreClientName, StoreClientCategory, ParentProductName, ParentProductId, "
+              "XboxParentProductId, AcquisitionType, PurchaseTaxType, LocalCurrencyCode, "
+              "SupportedPlatform, Age, Gender, OsVersion, DeviceType, DateStamp, "
+              "PurchaseQuantity, PurchasePriceUSDAmount, PurchaseTaxUSDAmount, "
               "PurchasePriceLocalAmount, PurchaseTaxLocalAmount "
               "FROM Acquisitions "
               "WHERE ProductId IN ('all') "
@@ -134,12 +135,13 @@ jobs:
                   body = e.read().decode("utf-8", errors="replace")
                   raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
 
-          def get_json(url, token):
+          def get_json(url, token, allow_404_empty=False):
               req = urllib.request.Request(
                   url,
                   headers={
                       "Authorization": f"Bearer {token}",
                       "Accept": "application/json",
+                      "Content-Type": "application/json",
                   },
                   method="GET",
               )
@@ -149,6 +151,18 @@ jobs:
                       return json.loads(response.read().decode("utf-8"))
               except urllib.error.HTTPError as e:
                   body = e.read().decode("utf-8", errors="replace")
+
+                  if e.code == 404 and allow_404_empty:
+                      print("GET returned 404, treating as empty result:", body[:500])
+                      return {
+                          "value": [],
+                          "Value": [],
+                          "totalCount": 0,
+                          "TotalCount": 0,
+                          "message": body,
+                          "statusCode": 404,
+                      }
+
                   raise RuntimeError(f"HTTP {e.code} {e.reason}: {body[:2000]}") from e
 
           def post_json(url, token, payload):
@@ -192,6 +206,7 @@ jobs:
               if not os.path.exists(STATE_FILE):
                   return {
                       "seen_paid_row_quantities": {},
+                      "query_id": None,
                       "last_checked": None,
                   }
 
@@ -332,23 +347,36 @@ jobs:
 
               return access_token
 
-          def extract_first_value(response):
+          def response_values(response):
               values = response.get("value") or response.get("Value") or []
 
-              if not isinstance(values, list) or not values:
+              if not isinstance(values, list):
+                  return []
+
+              return values
+
+          def first_value(response):
+              values = response_values(response)
+
+              if not values:
                   return None
 
               return values[0]
 
-          def get_or_create_query(token):
+          def get_or_create_query(token, state):
+              saved_query_id = clean_text(state.get("query_id"))
+
+              if saved_query_id:
+                  print("Using query ID from state:", saved_query_id)
+                  return saved_query_id
+
               queries_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledQueries"
 
-              existing = get_json(queries_url, token)
-              values = existing.get("value") or existing.get("Value") or []
+              existing = get_json(queries_url, token, allow_404_empty=True)
+              values = response_values(existing)
 
               for item in values:
                   name = clean_text(item.get("name") or item.get("Name"))
-                  query = clean_text(item.get("query") or item.get("Query"))
                   query_id = clean_text(item.get("queryId") or item.get("QueryId"))
 
                   if name == QUERY_NAME and query_id:
@@ -362,7 +390,7 @@ jobs:
               }
 
               created = post_json(queries_url, token, payload)
-              item = extract_first_value(created)
+              item = first_value(created)
 
               if not item:
                   print(json.dumps(created, indent=2))
@@ -388,46 +416,65 @@ jobs:
               }
 
               created = post_json(report_url, token, payload)
-              item = extract_first_value(created)
+              item = first_value(created)
 
               if not item:
                   print(json.dumps(created, indent=2))
                   raise RuntimeError("Microsoft did not return a reportId after creating the report.")
 
               report_id = clean_text(item.get("reportId") or item.get("ReportId"))
+              secure_link = clean_text(item.get("reportAccessSecureLink") or item.get("ReportAccessSecureLink"))
+              status = clean_text(item.get("executionStatus") or item.get("ExecutionStatus"))
 
               if not report_id:
                   print(json.dumps(created, indent=2))
                   raise RuntimeError("Created report, but reportId was missing.")
 
               print("Created report:", report_id)
-              return report_id
+
+              if secure_link:
+                  print("Report download link returned immediately from create_report.")
+                  return report_id, secure_link
+
+              if status:
+                  print("Create report status:", status)
+
+              return report_id, None
 
           def wait_for_report_download(token, report_id):
-              execution_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledReport/execution/{report_id}"
+              base_execution_url = f"{BASE_URL}/consumer/insights/v1.1/ScheduledReport/execution/{report_id}"
 
               for attempt in range(1, 31):
-                  response = get_json(execution_url, token)
-                  values = response.get("value") or response.get("Value") or []
+                  completed_url = base_execution_url + "?" + urllib.parse.urlencode({
+                      "executionStatus": "Completed",
+                      "getLatestExecution": "true",
+                  })
 
-                  if not isinstance(values, list):
-                      print(json.dumps(response, indent=2))
-                      raise RuntimeError("Unexpected report execution response format.")
+                  completed = get_json(completed_url, token, allow_404_empty=True)
+                  completed_values = response_values(completed)
 
-                  if values:
-                      item = values[0]
+                  if completed_values:
+                      item = completed_values[0]
                       status = clean_text(item.get("executionStatus") or item.get("ExecutionStatus"))
                       secure_link = clean_text(item.get("reportAccessSecureLink") or item.get("ReportAccessSecureLink"))
 
-                      print(f"Report status attempt {attempt}: {status or 'Unknown'}")
+                      print(f"Completed report status attempt {attempt}: {status or 'Unknown'}")
 
                       if status.lower() == "completed" and secure_link:
                           return secure_link
 
-                      if status.lower() in {"failed", "failure", "error", "cancelled", "canceled"}:
-                          print(json.dumps(response, indent=2))
-                          raise RuntimeError(f"Microsoft report failed with status: {status}")
+                  pending_url = base_execution_url + "?" + urllib.parse.urlencode({
+                      "executionStatus": "Pending",
+                      "getLatestExecution": "true",
+                  })
 
+                  pending = get_json(pending_url, token, allow_404_empty=True)
+                  pending_values = response_values(pending)
+
+                  if pending_values:
+                      item = pending_values[0]
+                      status = clean_text(item.get("executionStatus") or item.get("ExecutionStatus"))
+                      print(f"Pending report status attempt {attempt}: {status or 'Unknown'}")
                   else:
                       print(f"Report status attempt {attempt}: waiting")
 
@@ -488,13 +535,16 @@ jobs:
 
           def main():
               now = datetime.now(timezone.utc)
+              state = load_state()
               token = get_access_token()
 
-              query_id = get_or_create_query(token)
-              report_id = create_report(token, query_id)
-              download_url = wait_for_report_download(token, report_id)
-              csv_text = download_text(download_url)
+              query_id = get_or_create_query(token, state)
+              report_id, download_url = create_report(token, query_id)
 
+              if not download_url:
+                  download_url = wait_for_report_download(token, report_id)
+
+              csv_text = download_text(download_url)
               all_rows = parse_report_csv(csv_text)
               matching_rows = [row for row in all_rows if row_product_matches_app(row)]
 
@@ -513,9 +563,7 @@ jobs:
               paid_quantity_72h = sum(purchase_quantity(row) for row in paid_rows)
               paid_revenue_usd_72h = sum(usd_amount(row) for row in paid_rows)
 
-              state = load_state()
               seen = state.get("seen_paid_row_quantities", {})
-
               current_paid_quantities = defaultdict(int)
               row_by_fingerprint = {}
 
@@ -547,6 +595,7 @@ jobs:
                   "last_checked": now.isoformat(),
                   "used_api": "consumer/insights/v1.1 ScheduledReport",
                   "query_name": QUERY_NAME,
+                  "query_id": query_id,
                   "report_id": report_id,
                   "window": "LAST_72_HOURS",
                   "paid_quantity_72h": paid_quantity_72h,
@@ -559,6 +608,7 @@ jobs:
 
               print("Used API: consumer/insights/v1.1 ScheduledReport")
               print("Query name:", QUERY_NAME)
+              print("Query ID:", query_id)
               print("Report ID:", report_id)
               print("Window: LAST_72_HOURS")
               print("Product filter:", product_filter_note)
