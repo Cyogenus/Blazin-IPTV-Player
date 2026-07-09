@@ -42,7 +42,7 @@ jobs:
 
           python3 <<'PY'
           import json, os, urllib.parse, urllib.request
-          from datetime import datetime, timezone
+          from datetime import datetime, timedelta, timezone
 
           STATE_FILE = ".github/state/blazin_sales_state.json"
 
@@ -119,7 +119,7 @@ jobs:
 
           query = {
               "applicationId": app_id,
-              "startDate": ms_date(now),
+              "startDate": ms_date(now - timedelta(days=1)),
               "endDate": ms_date(now),
               "aggregationLevel": "day",
               "groupby": "date,applicationName,acquisitionType,market,deviceType,storeClient,osVersion",
