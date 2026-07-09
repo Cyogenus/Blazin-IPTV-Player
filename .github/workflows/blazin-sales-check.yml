@@ -48,6 +48,7 @@ jobs:
 
           python3 <<'PY'
           import csv
+          import hashlib
           import io
           import json
           import os
@@ -71,20 +72,20 @@ jobs:
 
           BASE_URL = "https://manage.devcenter.microsoft.com"
 
-          # Query name can only use letters, numbers, and spaces.
-          QUERY_NAME = "BLAZIN Sales Check V6"
+          # Microsoft only allows query names with letters, numbers, and spaces.
+          QUERY_NAME = "BLAZIN Sales Check V7"
 
+          # API-safe fields only. Do not add OrderId here.
+          # OrderId exists in manual Partner Center CSV exports, but it is not an API-selectable column.
           SALES_QUERY = (
               "SELECT "
-              "TitleId, ProductId, XboxProductId, OrderId, ProductTypeName, TitleName, "
+              "TitleId, ProductId, XboxProductId, ProductTypeName, TitleName, "
               "CatalogId, SandboxId, SkuId, SkuTypeName, SkuDisplayName, "
               "AvailabilityId, RegionName, CountryName, Market, PaymentType, "
               "StoreClientName, StoreClientCategory, ParentProductName, ParentProductId, "
-              "ParentProductDisplayName, XboxParentProductId, AcquisitionType, "
-              "AbstractAcquisitionType, PurchaseTaxType, LocalCurrencyCode, "
-              "SupportedPlatform, Age, Gender, OsVersion, DeviceType, WishlistId, "
-              "IsWishlisted, IsGiftPurchase, TransactionOrigin, ProductSubTypeName, "
-              "DateStamp, PurchaseQuantity, PurchasePriceUSDAmount, PurchaseTaxUSDAmount, "
+              "XboxParentProductId, AcquisitionType, PurchaseTaxType, LocalCurrencyCode, "
+              "SupportedPlatform, Age, Gender, OsVersion, DeviceType, DateStamp, "
+              "PurchaseQuantity, PurchasePriceUSDAmount, PurchaseTaxUSDAmount, "
               "PurchasePriceLocalAmount, PurchaseTaxLocalAmount "
               "FROM Acquisitions "
               f"WHERE ProductId = '{app_id}' "
@@ -102,13 +103,6 @@ jobs:
               "paypal",
               "real time payments",
               "split transaction",
-          }
-
-          FREE_PAYMENT_TYPES = {
-              "",
-              "unknown",
-              "zero amount paid",
-              "token redemption",
           }
 
           def clean_text(value):
@@ -198,7 +192,7 @@ jobs:
           def load_state():
               if not os.path.exists(STATE_FILE):
                   return {
-                      "seen_paid_order_ids": [],
+                      "seen_paid_row_quantities": {},
                       "last_checked": None,
                       "query_name": None,
                       "query_id": None,
@@ -207,8 +201,8 @@ jobs:
               with open(STATE_FILE, "r", encoding="utf-8") as f:
                   state = json.load(f)
 
-              if "seen_paid_order_ids" not in state:
-                  state["seen_paid_order_ids"] = []
+              if "seen_paid_row_quantities" not in state:
+                  state["seen_paid_row_quantities"] = {}
 
               return state
 
@@ -238,9 +232,6 @@ jobs:
           def local_amount(row):
               return row_float(row, "PurchasePriceLocalAmount")
 
-          def order_id(row):
-              return clean_text(row.get("OrderId"))
-
           def row_country(row):
               country = clean_text(row.get("CountryName"))
               market = clean_text(row.get("Market"))
@@ -264,7 +255,10 @@ jobs:
               try:
                   return datetime.fromisoformat(value.replace("Z", "+00:00"))
               except Exception:
-                  return None
+                  try:
+                      return datetime.strptime(value[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                  except Exception:
+                      return None
 
           def row_date_pacific(row):
               dt = row_date_utc(row)
@@ -284,11 +278,16 @@ jobs:
               usd = usd_amount(row)
               local = local_amount(row)
 
-              # From your CSV, real sales are full + Paid + Credit Card/PayPal + non-zero amount.
-              if acquisition_type == "paid" and sku_type == "full" and (usd > 0 or local > 0):
+              if acquisition_type != "paid":
+                  return False
+
+              if sku_type != "full":
+                  return False
+
+              if usd > 0 or local > 0:
                   return True
 
-              if acquisition_type == "paid" and payment_type in PAID_PAYMENT_TYPES:
+              if payment_type in PAID_PAYMENT_TYPES:
                   return True
 
               return False
@@ -306,6 +305,30 @@ jobs:
 
           def is_prepaid_code_row(row):
               return lower_text(row.get("AcquisitionType")) == "prepaid code"
+
+          def paid_row_fingerprint(row):
+              # API reports are aggregated. This fingerprint identifies a paid row bucket.
+              # If PurchaseQuantity increases for the same bucket, the workflow counts only the delta.
+              parts = {
+                  "DateStamp": clean_text(row.get("DateStamp")),
+                  "ProductId": clean_text(row.get("ProductId")),
+                  "TitleId": clean_text(row.get("TitleId")),
+                  "SkuId": clean_text(row.get("SkuId")),
+                  "SkuTypeName": clean_text(row.get("SkuTypeName")),
+                  "SkuDisplayName": clean_text(row.get("SkuDisplayName")),
+                  "CountryName": clean_text(row.get("CountryName")),
+                  "Market": clean_text(row.get("Market")),
+                  "PaymentType": clean_text(row.get("PaymentType")),
+                  "AcquisitionType": clean_text(row.get("AcquisitionType")),
+                  "LocalCurrencyCode": clean_text(row.get("LocalCurrencyCode")),
+                  "DeviceType": clean_text(row.get("DeviceType")),
+                  "StoreClientName": clean_text(row.get("StoreClientName")),
+                  "PurchasePriceUSDAmount": clean_text(row.get("PurchasePriceUSDAmount")),
+                  "PurchasePriceLocalAmount": clean_text(row.get("PurchasePriceLocalAmount")),
+              }
+
+              raw = json.dumps(parts, sort_keys=True)
+              return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
           def parse_report_csv(text):
               reader = csv.DictReader(io.StringIO(text))
@@ -370,7 +393,7 @@ jobs:
               payload = {
                   "Query": SALES_QUERY,
                   "Name": QUERY_NAME,
-                  "Description": "BLAZIN paid sales checker using Acquisitions report fields.",
+                  "Description": "BLAZIN paid sales checker using API safe Acquisitions fields.",
               }
 
               created = post_json(queries_url, token, payload)
@@ -493,8 +516,7 @@ jobs:
                       f"{clean_text(row.get('PaymentType')) or 'Unknown payment'} | "
                       f"{clean_text(row.get('AcquisitionType')) or 'Unknown type'} | "
                       f"{clean_text(row.get('SkuTypeName')) or 'Unknown SKU'} | "
-                      f"{price_text} | "
-                      f"OrderId: {order_id(row) or 'Unknown'}"
+                      f"{price_text}"
                   )
 
               return "\n".join(lines)
@@ -529,26 +551,37 @@ jobs:
                   if row_date_pacific(row) == today_pt
               ]
 
-              seen_paid_order_ids = set(state.get("seen_paid_order_ids", []))
-              new_paid_rows = []
+              seen_paid_row_quantities = state.get("seen_paid_row_quantities", {})
+              current_paid_quantities = defaultdict(int)
+              row_by_fingerprint = {}
 
               for row in paid_rows:
-                  oid = order_id(row)
+                  fingerprint = paid_row_fingerprint(row)
+                  qty = purchase_quantity(row)
 
-                  if not oid:
-                      continue
+                  current_paid_quantities[fingerprint] += qty
+                  row_by_fingerprint[fingerprint] = row
 
-                  if oid not in seen_paid_order_ids:
-                      new_paid_rows.append(row)
-                      seen_paid_order_ids.add(oid)
+              new_paid_sales = 0
+              new_paid_rows = []
 
-              if len(seen_paid_order_ids) > 5000:
-                  seen_paid_order_ids = set(list(seen_paid_order_ids)[-5000:])
+              for fingerprint, qty in current_paid_quantities.items():
+                  previous_qty = int(seen_paid_row_quantities.get(fingerprint, 0) or 0)
+                  delta = max(0, qty - previous_qty)
+
+                  if delta > 0:
+                      new_paid_sales += delta
+                      row_copy = dict(row_by_fingerprint[fingerprint])
+                      row_copy["PurchaseQuantity"] = str(delta)
+                      new_paid_rows.append(row_copy)
+
+                  seen_paid_row_quantities[fingerprint] = max(previous_qty, qty)
+
+              if len(seen_paid_row_quantities) > 5000:
+                  seen_paid_row_quantities = dict(list(seen_paid_row_quantities.items())[-5000:])
 
               paid_total = sum(purchase_quantity(row) for row in paid_rows)
               paid_today = sum(purchase_quantity(row) for row in today_paid_rows)
-              new_paid_sales = sum(purchase_quantity(row) for row in new_paid_rows)
-
               trial_or_free_total = sum(purchase_quantity(row) for row in trial_or_free_rows)
               prepaid_code_total = sum(purchase_quantity(row) for row in prepaid_code_rows)
               total_acquisitions = sum(purchase_quantity(row) for row in rows)
@@ -569,7 +602,7 @@ jobs:
                   "trial_or_free_total_last_30_days": trial_or_free_total,
                   "prepaid_code_total_last_30_days": prepaid_code_total,
                   "total_acquisitions_last_30_days": total_acquisitions,
-                  "seen_paid_order_ids": sorted(seen_paid_order_ids),
+                  "seen_paid_row_quantities": seen_paid_row_quantities,
               }
 
               save_state(state)
