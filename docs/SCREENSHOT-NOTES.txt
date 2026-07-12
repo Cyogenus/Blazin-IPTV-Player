@@ -28,13 +28,13 @@
     "operatingSystem": "Windows 10, Windows 11",
     "applicationCategory": "MultimediaApplication",
     "description": "Fast Windows IPTV player for M3U, M3U Plus, Xtream Codes, STB MAC, and Stalker Portal sources with EPG and internal VLC playback.",
-    "downloadUrl": "https://apps.microsoft.com/detail/9NQ5S0FFCN8T",
+    "downloadUrl": "https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website",
     "softwareHelp": "https://github.com/Cyogenus/Blazin-IPTV-Player/blob/main/USER_GUIDE.md",
     "url": "https://windowsiptv.com/",
     "sameAs": [
       "https://github.com/Cyogenus/Blazin-IPTV-Player",
       "https://www.reddit.com/r/BlazinIPTVPlayer/",
-      "https://apps.microsoft.com/detail/9NQ5S0FFCN8T"
+      "https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website"
     ]
   }
 ]
@@ -66,7 +66,7 @@
       <div class="breadcrumb"><a href="index.html">Home</a> / M3U Plus Player for Windows</div>
       <h1>M3U Plus Player for Windows</h1>
       <p class="lead">BLAZIN IPTV Player supports compatible M3U Plus playlist URLs on Windows with Live TV, Movies, Series, EPG, and internal VLC playback when provided by the source.</p>
-      <div class="actions"><a class="btn primary" href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T">Download from Microsoft Store</a><a class="btn" href="screenshots.html">View Screenshots</a></div>
+      <div class="actions"><a class="btn primary" href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website">Download from Microsoft Store</a><a class="btn" href="screenshots.html">View Screenshots</a></div>
     </div>
   </section>
   <section class="section alt">
@@ -114,7 +114,7 @@
       <span>Fast, compact Windows IPTV player for user-provided legal sources.</span>
     </div>
     <div class="footer-links">
-      <a href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T">Microsoft Store</a>
+      <a href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website">Microsoft Store</a>
       <a href="https://github.com/Cyogenus/Blazin-IPTV-Player">GitHub</a>
       <a href="https://www.reddit.com/r/BlazinIPTVPlayer/">Reddit</a>
       <a href="legal-disclaimer.html">Legal Disclaimer</a>

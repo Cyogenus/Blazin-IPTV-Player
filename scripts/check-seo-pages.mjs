@@ -24,8 +24,8 @@ for (const slug of slugs) {
   if (!html.includes(`<link rel="canonical" href="${canonical}">`)) errors.push(`${slug}: canonical mismatch`);
   if ((html.match(/<h1>/gi) ?? []).length !== 1) errors.push(`${slug}: expected one H1`);
   if ((html.match(/<h2>/gi) ?? []).length < 4) errors.push(`${slug}: expected at least four H2 sections`);
-  if (!html.includes("https://apps.microsoft.com/detail/9NQ5S0FFCN8T")) errors.push(`${slug}: missing Store CTA`);
-  if (!html.includes("You must provide your own legal IPTV source")) errors.push(`${slug}: missing legal-source statement`);
+  if (!html.includes("https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website")) errors.push(`${slug}: missing Store CTA`);
+  if (!html.includes("You must provide your own legal IPTV source") && !html.includes("Users must provide their own legal IPTV source")) errors.push(`${slug}: missing legal-source statement`);
   if (/Google Trends|keyword stuffing|SEO rankings|search traffic/i.test(html)) errors.push(`${slug}: public research language found`);
   for (const script of html.matchAll(/<script type="application\/ld\+json">([^<]+)<\/script>/gi)) {
     try { JSON.parse(script[1]); } catch { errors.push(`${slug}: invalid JSON-LD`); }
