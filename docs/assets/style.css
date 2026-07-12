@@ -193,6 +193,7 @@ p { margin-top: 0; }
 .stat strong { display:block; font-size:1.35rem; color:#fff; }
 .stat span { color:var(--muted); font-size:.92rem; }
 .table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:18px; background:rgba(18,25,35,.72); }
+.comparison-takeaways { margin-top: 34px; }
 table.compare { width:100%; border-collapse:collapse; min-width:720px; }
 table.compare th, table.compare td { padding:14px 16px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
 table.compare th { color:#fff; background:rgba(255,255,255,.05); }

@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = new URL("../docs/", import.meta.url).pathname.replace(/^\/(.:)/, "$1");
-const store = "https://apps.microsoft.com/detail/9NQ5S0FFCN8T";
+const store = "https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website";
 
 const pages = [
   {
@@ -221,10 +221,18 @@ ${p.comparison ? comparisonTable() : ""}
 <footer class="site-footer"><div class="container footer-grid"><div><strong>BLAZIN IPTV Player</strong><br><span>Windows IPTV player for user-provided legal sources.</span></div><div class="footer-links"><a href="../">Home</a><a href="../download.html">7-Day Trial</a><a href="../legal-disclaimer.html">Legal Disclaimer</a><a href="../faq.html">FAQ</a></div></div></footer></body></html>\n`;
 }
 
+const longFormComparisonPages = new Set([
+  "iptvnator-alternative",
+  "iptv-smarters-alternative-windows",
+  "vlc-alternative-iptv-player",
+  "iptv-player-for-pc-without-emulator"
+]);
+
 for (const page of pages) {
+  if (longFormComparisonPages.has(page.slug)) continue;
   const dir = join(root, page.slug);
   mkdirSync(dir, {recursive: true});
   writeFileSync(join(dir, "index.html"), html(page), "utf8");
 }
 
-console.log(`Generated ${pages.length} landing pages.`);
+console.log(`Generated ${pages.length - longFormComparisonPages.size} standard landing pages; long-form comparison pages are maintained by generate-comparison-pages.mjs.`);
