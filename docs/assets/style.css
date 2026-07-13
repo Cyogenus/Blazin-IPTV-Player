@@ -359,3 +359,54 @@ table.compare td { color:var(--muted); }
 #download-options p {
   color: var(--muted);
 }
+
+/* Phase 1: expanded website footer links */
+.site-footer .footer-links {
+  gap: 10px 16px;
+  align-items: flex-start;
+}
+.site-footer .footer-links a {
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .site-footer .footer-links {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phase 2: stronger sales-page presentation */
+.phase2-hero .lead { max-width: 980px; }
+.phase2-hero .actions { margin-top: 22px; }
+.compare strong, .card strong, .content-band strong { color: var(--text); }
+.table-wrap + .callout { margin-top: 18px; }
+.feature-note { color: var(--muted); font-size: .98rem; margin-top: 14px; }
+@media (max-width: 760px) {
+  .compare th, .compare td { padding: 12px 13px; }
+}
+
+
+
+/* Phase 4: polished competitor comparison pages */
+.phase4-hero .callout { margin: 18px 0 0; }
+.decision-grid .decision-card span {
+  display:inline-flex;
+  color:#ffd7b5;
+  border:1px solid rgba(255,122,24,.28);
+  background:rgba(255,122,24,.08);
+  border-radius:999px;
+  padding:5px 9px;
+  font-size:.78rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  margin-bottom:12px;
+}
+.legal-callout p { margin: 0 0 8px; }
+.legal-callout p:last-child { margin-bottom: 0; }
+.source-list a { color: var(--text); font-weight: 700; }
+.decision-card { border:1px solid rgba(255,255,255,.10); border-radius:20px; background:rgba(18,25,35,.82); }
+@media (max-width: 760px) {
+  .phase4-hero .side-by-side { grid-template-columns: 1fr; }
+  table.compare { min-width: 760px; }
+}

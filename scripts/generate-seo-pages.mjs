@@ -209,7 +209,7 @@ function html(p) {
 <link rel="canonical" href="https://windowsiptv.com/${p.slug}/"><link rel="icon" href="../assets/favicon.png" type="image/png"><link rel="stylesheet" href="../assets/style.css">
 <meta property="og:type" content="website"><meta property="og:site_name" content="BLAZIN IPTV Player"><meta property="og:title" content="${p.title}"><meta property="og:description" content="${p.description}"><meta property="og:url" content="https://windowsiptv.com/${p.slug}/"><meta property="og:image" content="https://windowsiptv.com/screenshots/${p.image}">
 <script type="application/ld+json">${escapeJson(faqSchema)}</script></head><body>
-<header class="site-header"><div class="container nav"><a class="brand" href="../"><img class="site-logo" src="../assets/app-icon.png" alt="BLAZIN IPTV Player icon"><span>BLAZIN IPTV Player</span></a><nav class="nav-links" aria-label="Main navigation"><a href="../">Home</a><a href="../download.html">7-Day Trial</a><a href="../features.html">Features</a><a href="../screenshots.html">Screenshots</a><a href="../user-guide.html">User Guide</a><a href="../faq.html">FAQ</a></nav></div></header>
+<header class="site-header"><div class="container nav"><a class="brand" href="../"><img class="site-logo" src="../assets/app-icon.png" alt="BLAZIN IPTV Player icon"><span>BLAZIN IPTV Player</span></a><nav class="nav-links" aria-label="Main navigation"><a href="../">Home</a><a href="../download.html">7-Day Trial</a><a href="../features.html">Features</a><a href="../guides.html">Guides</a><a href="../screenshots.html">Screenshots</a><a href="../user-guide.html">User Guide</a><a href="../faq.html">FAQ</a></nav></div></header>
 <main><section class="page-title"><div class="container content-narrow"><div class="breadcrumb"><a href="../">Home</a> / ${p.h1}</div><span class="badge-line">Windows 10 &amp; 11 &bull; 7-Day Free Trial</span><h1>${p.h1}</h1><p class="lead">${p.intro}</p><div class="trial-strip"><strong>Player-only software.</strong><span>BLAZIN does not provide channels, playlists, subscriptions, or provider accounts. You must provide your own legal IPTV source.</span></div><div class="actions"><a class="btn primary" href="${store}">Start 7-Day Free Trial</a><a class="btn" href="../screenshots.html">View Screenshots</a></div></div></section>
 <section class="section alt"><div class="container side-by-side"><div class="content-band"><p class="kicker">Windows IPTV workflow</p><h2>${p.sectionTitle}</h2><p>${p.body}</p></div><div class="hero-card"><img class="hero-screenshot" src="../screenshots/${p.image}" alt="${p.imageAlt}" width="900" height="506"></div></div></section>
 <section class="section"><div class="container"><p class="kicker">What BLAZIN supports</p><h2>Features to test with your own source</h2><div class="grid three">${p.cards.map(([h,b])=>`<article class="card"><h3>${h}</h3><p>${b}</p></article>`).join("")}</div></div></section>
@@ -218,21 +218,34 @@ ${p.comparison ? comparisonTable() : ""}
 <section class="section faq-section"><div class="container content-narrow"><p class="kicker">FAQ</p><h2>Frequently asked questions</h2><div class="faq-list">${p.faq.map(([q,a])=>`<details class="faq-item"><summary>${q}</summary><p>${a}</p></details>`).join("")}</div></div></section>
 <section class="section alt"><div class="container"><p class="kicker">Related guides</p><h2>Continue exploring BLAZIN IPTV Player</h2><div class="grid three">${p.related.map((slug)=>`<article class="card"><h3><a href="../${slug}/">${names[slug]}</a></h3><p>Review this focused guide and compare it with the source and Windows workflow you use.</p></article>`).join("")}</div></div></section>
 <section class="section"><div class="container cta-band"><p class="kicker">Microsoft Store</p><h2>Try BLAZIN IPTV Player free for 7 days</h2><p class="lead">Install the Windows app, add your own legal IPTV source, and test the supported workflow on your PC.</p><div class="actions store-with-badge"><a class="btn primary" href="${store}">Open Microsoft Store</a><a class="btn" href="../legal-disclaimer.html">Read Legal Notice</a></div><p class="small">No channels, playlists, subscriptions, provider accounts, or copyrighted content are included.</p></div></section></main>
-<footer class="site-footer"><div class="container footer-grid"><div><strong>BLAZIN IPTV Player</strong><br><span>Windows IPTV player for user-provided legal sources.</span></div><div class="footer-links"><a href="../">Home</a><a href="../download.html">7-Day Trial</a><a href="../legal-disclaimer.html">Legal Disclaimer</a><a href="../faq.html">FAQ</a></div></div></footer></body></html>\n`;
+<footer class="site-footer"><div class="container footer-grid"><div><strong>BLAZIN IPTV Player</strong><br><span>Windows IPTV player for user-provided legal sources.</span></div><div class="footer-links"><a href="../">Home</a><a href="../download.html">7-Day Trial</a><a href="../features.html">Features</a><a href="../guides.html">Guides</a><a href="../screenshots.html">Screenshots</a><a href="../user-guide.html">User Guide</a><a href="../faq.html">FAQ</a><a href="../legal-disclaimer.html">Legal Disclaimer</a><a href="../windows-iptv-player/">Windows IPTV Player</a><a href="../best-iptv-player-for-windows/">Best IPTV Player for Windows</a><a href="../iptv-player-windows-11/">IPTV Player for Windows 11</a><a href="../m3u-player-windows/">M3U Player Windows</a><a href="../xtream-codes-player-windows/">Xtream Codes Player Windows</a><a href="../stb-mac-player-windows/">STB MAC Player Windows</a><a href="../stalker-portal-player-windows/">Stalker Portal Player Windows</a><a href="../epg-iptv-player-windows/">EPG IPTV Player Windows</a><a href="../iptv-smarters-alternative-windows/">IPTV Smarters Alternative</a><a href="../iptvnator-alternative/">IPTVnator Alternative</a><a href="../vlc-alternative-iptv-player/">VLC Alternative</a><a href="../iptv-player-for-pc-without-emulator/">IPTV Player Without Emulator</a><a href="https://github.com/Cyogenus/Blazin-IPTV-Player" rel="noopener" target="_blank">GitHub</a><a href="https://www.reddit.com/r/BlazinIPTVPlayer/" rel="noopener" target="_blank">Reddit</a></div></div></footer></body></html>\n`;
 }
 
-const longFormComparisonPages = new Set([
+const manuallyMaintainedPages = new Set([
+  // Phase 2: full sales pages are hand-written so the generator does not flatten them.
+  "windows-iptv-player",
+  "best-iptv-player-for-windows",
+  "iptv-player-windows-11",
+  // Phase 3: source workflow pages are hand-written so the generator does not flatten them.
+  "m3u-player-windows",
+  "xtream-codes-player-windows",
+  "stb-mac-player-windows",
+  "stalker-portal-player-windows",
+  "epg-iptv-player-windows",
+  // Phase 4: long-form comparison pages are maintained separately.
   "iptvnator-alternative",
   "iptv-smarters-alternative-windows",
   "vlc-alternative-iptv-player",
   "iptv-player-for-pc-without-emulator"
 ]);
 
+let generated = 0;
 for (const page of pages) {
-  if (longFormComparisonPages.has(page.slug)) continue;
+  if (manuallyMaintainedPages.has(page.slug)) continue;
   const dir = join(root, page.slug);
   mkdirSync(dir, {recursive: true});
   writeFileSync(join(dir, "index.html"), html(page), "utf8");
+  generated += 1;
 }
 
-console.log(`Generated ${pages.length - longFormComparisonPages.size} standard landing pages; long-form comparison pages are maintained by generate-comparison-pages.mjs.`);
+console.log(`Generated ${generated} standard landing pages; sales, source workflow, and comparison pages are manually maintained.`);

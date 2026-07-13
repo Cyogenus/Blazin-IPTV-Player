@@ -47,6 +47,11 @@ for (const loc of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) {
   if (!loc[1].startsWith("https://windowsiptv.com/")) errors.push(`invalid sitemap URL: ${loc[1]}`);
 }
 
+const forbiddenSitemapFragments = ["/404.html", "google", "yandex", ".txt", "windows-iptv-player.html", "m3u-player-windows.html", "xtream-codes-player-windows.html", "stb-mac-player-windows.html", "stalker-portal-player-windows.html", "iptv-smarters-alternative-windows.html", "vlc-iptv-player-windows.html"];
+for (const fragment of forbiddenSitemapFragments) {
+  if (sitemap.includes(fragment)) errors.push(`sitemap still contains ${fragment}`);
+}
+
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exit(1);

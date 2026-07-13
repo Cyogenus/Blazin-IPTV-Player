@@ -7,7 +7,7 @@ BLAZIN IPTV Player
 https://windowsiptv.com
 
 ## Microsoft Store
-https://apps.microsoft.com/detail/9NQ5S0FFCN8T
+https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website
 
 ## Platform
 BLAZIN IPTV Player is a Windows IPTV player for Windows 11 and Windows 10.
