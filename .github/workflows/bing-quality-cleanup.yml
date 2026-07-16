@@ -1,0 +1,51 @@
+name: Bing Quality Cleanup
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "scripts/fix-bing-quality-issues.mjs"
+      - "scripts/check-seo-pages.mjs"
+      - "scripts/generate-seo-pages.mjs"
+      - ".github/workflows/bing-quality-cleanup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check scripts
+        run: |
+          node --check scripts/fix-bing-quality-issues.mjs
+          node --check scripts/check-seo-pages.mjs
+          node --check scripts/generate-seo-pages.mjs
+
+      - name: Consolidate and sanitize website pages
+        run: node scripts/fix-bing-quality-issues.mjs
+
+      - name: Run Bing quality audit
+        run: node scripts/check-seo-pages.mjs
+
+      - name: Commit reviewed website cleanup
+        shell: bash
+        run: |
+          if git diff --quiet -- docs; then
+            echo "No website changes were required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Consolidate website for Bing quality compliance [skip ci]"
+          git push
