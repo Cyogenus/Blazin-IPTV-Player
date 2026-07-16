@@ -32,18 +32,18 @@ jobs:
       - name: Polish preferred pages
         run: node scripts/polish-bing-copy.mjs
 
-      - name: Validate preferred-page copy
-        run: node scripts/check-bing-copy.mjs
-
       - name: Commit copy cleanup
         shell: bash
         run: |
           if git diff --quiet -- docs; then
             echo "No copy changes were required."
-            exit 0
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs
+            git commit -m "Polish preferred pages for Bing quality [skip ci]"
+            git push
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs
-          git commit -m "Polish preferred pages for Bing quality [skip ci]"
-          git push
+
+      - name: Validate preferred-page copy
+        run: node scripts/check-bing-copy.mjs
