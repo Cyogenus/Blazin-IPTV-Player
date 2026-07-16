@@ -1,0 +1,51 @@
+name: Fix Favicon Links
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**/*.html"
+      - "docs/assets/favicon.png"
+      - "docs/assets/favicon.ico"
+      - "scripts/fix-favicon-links.mjs"
+      - "scripts/check-favicon-links.mjs"
+      - ".github/workflows/fix-favicon-links.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  favicon:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate scripts
+        run: |
+          node --check scripts/fix-favicon-links.mjs
+          node --check scripts/check-favicon-links.mjs
+
+      - name: Add stable favicon links
+        run: node scripts/fix-favicon-links.mjs
+
+      - name: Validate favicon setup
+        run: node scripts/check-favicon-links.mjs
+
+      - name: Commit favicon updates
+        shell: bash
+        run: |
+          if git diff --quiet -- docs; then
+            echo "No favicon changes were required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Add Google Search favicon links [skip ci]"
+          git push
