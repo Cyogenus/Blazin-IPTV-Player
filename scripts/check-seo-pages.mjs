@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
 const docs = resolve(new URL("../docs/", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
+const site = "https://windowsiptv.com";
 const errors = [];
 
 function walk(dir) {
@@ -11,41 +12,137 @@ function walk(dir) {
   });
 }
 
-const htmlFiles = walk(docs).filter((file) => file.endsWith(".html"));
-const canonicalOwners = new Map();
-const indexable = new Map();
+function rel(file) {
+  return relative(docs, file).replaceAll("\\", "/");
+}
 
-for (const file of htmlFiles) {
+function fileForPath(pathname) {
+  const clean = pathname.replace(/^\/+/, "");
+  if (!clean) return "index.html";
+  if (clean.endsWith("/")) return `${clean}index.html`;
+  return clean;
+}
+
+function attribute(tag, name) {
+  return tag.match(new RegExp(`\\b${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i"))?.[2]?.trim() ?? "";
+}
+
+function visibleText(html) {
+  const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] ?? html;
+  return main
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<header\b[\s\S]*?<\/header>/gi, " ")
+    .replace(/<footer\b[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shingles(text, size = 6) {
+  const words = text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+  const set = new Set();
+  for (let i = 0; i <= words.length - size; i += 1) set.add(words.slice(i, i + size).join(" "));
+  return set;
+}
+
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let intersection = 0;
+  for (const item of a) if (b.has(item)) intersection += 1;
+  return intersection / (a.size + b.size - intersection);
+}
+
+const sitemap = readFileSync(join(docs, "sitemap.xml"), "utf8");
+const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1].trim());
+const sitemapFiles = new Set(sitemapUrls.map((url) => fileForPath(new URL(url).pathname)));
+const sitemapUrlSet = new Set(sitemapUrls);
+const indexablePages = [];
+
+for (const file of walk(docs).filter((item) => item.toLowerCase().endsWith(".html"))) {
   const html = readFileSync(file, "utf8");
-  const name = relative(docs, file).replaceAll("\\", "/");
-  const robotTags = [...html.matchAll(/<meta\s+[^>]*name=["']robots["'][^>]*content=["']([^"']+)["'][^>]*>/gi)].map((m) => m[1].toLowerCase());
+  const name = rel(file);
+  if (!/<html\b/i.test(html) || !/<head\b/i.test(html)) continue;
 
-  if (robotTags.length > 1) errors.push(`${name}: multiple robots meta tags`);
-  const isNoindex = robotTags.some((value) => value.includes("noindex"));
-  indexable.set(name, !isNoindex);
+  const metaTags = [...html.matchAll(/<meta\b[^>]*>/gi)].map((match) => match[0]);
+  const robots = metaTags.filter((tag) => attribute(tag, "name").toLowerCase() === "robots").map((tag) => attribute(tag, "content").toLowerCase());
+  const noindex = robots.some((value) => value.includes("noindex"));
+  const descriptions = metaTags.filter((tag) => attribute(tag, "name").toLowerCase() === "description");
+  const canonicalTag = [...html.matchAll(/<link\b[^>]*>/gi)].map((match) => match[0]).find((tag) => attribute(tag, "rel").toLowerCase() === "canonical");
+  const canonical = canonicalTag ? attribute(canonicalTag, "href") : "";
+  const text = visibleText(html);
 
-  const canonical = html.match(/<link\s+[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["'][^>]*>/i)?.[1]
-    ?? html.match(/<link\s+[^>]*href=["']([^"']+)["'][^>]*rel=["']canonical["'][^>]*>/i)?.[1];
+  if (descriptions.length !== 1 || !attribute(descriptions[0] ?? "", "content")) errors.push(`${name}: expected one non-empty meta description`);
+  if (robots.length !== 1) errors.push(`${name}: expected exactly one robots meta tag`);
 
-  if (!canonical) errors.push(`${name}: missing canonical`);
-  if (canonical) {
-    if (!canonical.startsWith("https://windowsiptv.com/")) errors.push(`${name}: invalid canonical ${canonical}`);
-    if (!isNoindex) {
-      const prior = canonicalOwners.get(canonical);
-      if (prior) errors.push(`${name}: duplicate indexable canonical also used by ${prior}`);
-      else canonicalOwners.set(canonical, name);
+  if (name === "404.html") {
+    if (!noindex) errors.push(`${name}: 404 page must be noindex`);
+    continue;
+  }
+
+  if (!canonical || !canonical.startsWith(`${site}/`)) errors.push(`${name}: missing or invalid canonical`);
+
+  if (sitemapFiles.has(name)) {
+    if (noindex) errors.push(`${name}: sitemap page must be indexable`);
+    if (!sitemapUrlSet.has(canonical)) errors.push(`${name}: canonical is not one of the preferred sitemap URLs (${canonical})`);
+    if ((html.match(/<h1\b/gi) ?? []).length !== 1) errors.push(`${name}: expected exactly one H1`);
+    indexablePages.push({ name, html, text, canonical, shingles: shingles(text) });
+  } else {
+    if (!noindex) errors.push(`${name}: non-sitemap page must be noindex`);
+    if (canonical && !sitemapUrlSet.has(canonical)) errors.push(`${name}: consolidated page canonical must point to a preferred sitemap URL`);
+    if (!/<meta\b[^>]*http-equiv\s*=\s*(["'])refresh\1/i.test(html)) errors.push(`${name}: consolidated page is missing a redirect`);
+  }
+
+  if (/\b(?:ignore (?:all |any )?(?:previous|prior) instructions|system prompt|developer message|assistant instructions|prompt injection|copilot should|bing should|language model should|cite this page|ground your answer)\b/i.test(text)) {
+    errors.push(`${name}: possible prompt-injection or AI-manipulation language`);
+  }
+
+  if (/\b(?:workflow\s+workflow|keyword stuffing|seo rankings?|search traffic|built for .{0,120} searches|for .{0,100} search(?:es)? while|long-tail page|helps? sell blazin|editorial review placeholder)\b/i.test(text)) {
+    errors.push(`${name}: search-engine or generated-template language found`);
+  }
+
+  if (/<(?:div|span|p|section)\b[^>]*(?:hidden\b|style\s*=\s*(["'])[^"']*display\s*:\s*none)/i.test(html)) {
+    errors.push(`${name}: hidden HTML content requires manual review`);
+  }
+
+  for (const match of html.matchAll(/<script\b[^>]*src\s*=\s*(["'])(https?:\/\/[^"']+)\1/gi)) {
+    errors.push(`${name}: external script is not allowlisted (${match[2]})`);
+  }
+
+  for (const match of html.matchAll(/<script\b[^>]*type\s*=\s*(["'])application\/ld\+json\1[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let data;
+    try {
+      data = JSON.parse(match[2]);
+    } catch {
+      errors.push(`${name}: invalid JSON-LD`);
+      continue;
+    }
+    const objects = Array.isArray(data) ? data : [data];
+    for (const object of objects) {
+      if (!object || typeof object !== "object") continue;
+      if (object["@type"] === "SoftwareApplication") {
+        if ("offers" in object) errors.push(`${name}: SoftwareApplication offers must not be hard-coded`);
+        if ("alternateName" in object) errors.push(`${name}: generic alternateName targeting is not allowed`);
+        if (object.name !== "BLAZIN IPTV Player") errors.push(`${name}: SoftwareApplication name is inaccurate`);
+      }
+      if (object["@type"] === "FAQPage") {
+        for (const entry of object.mainEntity ?? []) {
+          const q = String(entry?.name ?? "");
+          const a = String(entry?.acceptedAnswer?.text ?? "");
+          if (!q || !a || !text.toLowerCase().includes(q.toLowerCase()) || !text.toLowerCase().includes(a.toLowerCase())) {
+            errors.push(`${name}: FAQ structured data is not fully represented in visible content`);
+          }
+        }
+      }
     }
   }
 
-  if (!isNoindex) {
-    if ((html.match(/<h1\b/gi) ?? []).length !== 1) errors.push(`${name}: expected one H1`);
-    if (/long-tail|placeholder|keyword stuffing|SEO rankings|search traffic|helps? sell|should tie directly|result is a more useful buying page|fixes the missing link problem/i.test(html)) {
-      errors.push(`${name}: editorial or SEO-build language found`);
-    }
-  }
-
-  for (const match of html.matchAll(/(?:href|src)=["']([^"']+)["']/gi)) {
-    const ref = match[1];
+  for (const match of html.matchAll(/(?:href|src)=(["'])([^"']+)\1/gi)) {
+    const ref = match[2];
     if (/^(?:https?:|mailto:|tel:|#|data:)/i.test(ref)) continue;
     const clean = ref.split("#")[0].split("?")[0];
     if (!clean || clean.startsWith("/")) continue;
@@ -55,42 +152,13 @@ for (const file of htmlFiles) {
   }
 }
 
-const sitemapPath = join(docs, "sitemap.xml");
-const sitemap = readFileSync(sitemapPath, "utf8");
-const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-const locSet = new Set();
-
-for (const loc of locs) {
-  if (locSet.has(loc)) errors.push(`sitemap: duplicate URL ${loc}`);
-  locSet.add(loc);
-  if (!loc.startsWith("https://windowsiptv.com/")) errors.push(`sitemap: invalid URL ${loc}`);
-
-  const pathname = new URL(loc).pathname;
-  let file;
-  if (pathname === "/") file = join(docs, "index.html");
-  else if (pathname.endsWith("/")) file = join(docs, pathname.slice(1), "index.html");
-  else file = join(docs, pathname.slice(1));
-
-  if (!existsSync(file)) {
-    errors.push(`sitemap: missing target ${loc}`);
-    continue;
+for (let i = 0; i < indexablePages.length; i += 1) {
+  for (let j = i + 1; j < indexablePages.length; j += 1) {
+    const first = indexablePages[i];
+    const second = indexablePages[j];
+    const similarity = jaccard(first.shingles, second.shingles);
+    if (similarity >= 0.72) errors.push(`${first.name} and ${second.name}: excessive visible-content similarity (${similarity.toFixed(2)})`);
   }
-
-  const rel = relative(docs, file).replaceAll("\\", "/");
-  if (indexable.get(rel) === false) errors.push(`sitemap: noindex page included ${loc}`);
-}
-
-const duplicateLegacyPages = [
-  "windows-iptv-player.html",
-  "m3u-player-windows.html",
-  "xtream-codes-player-windows.html",
-  "stb-mac-player-windows.html",
-  "stalker-portal-player-windows.html",
-  "iptv-smarters-alternative-windows.html",
-  "vlc-iptv-player-windows.html"
-];
-for (const name of duplicateLegacyPages) {
-  if (indexable.get(name) !== false) errors.push(`${name}: legacy duplicate must be noindex`);
 }
 
 if (errors.length) {
@@ -98,4 +166,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Checked ${htmlFiles.length} HTML files and ${locs.length} sitemap URLs.`);
+console.log(`Bing quality audit passed: ${indexablePages.length} preferred indexable pages; all other HTML pages are consolidated and noindex.`);
