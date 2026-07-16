@@ -29,6 +29,26 @@ function setPropertyMeta(html, property, content) {
   return cleaned.replace(/<\/head>/i, `${tag}</head>`);
 }
 
+function syncSoftwareDescription(html, description) {
+  return html.replace(/<script\b[^>]*type\s*=\s*(["'])application\/ld\+json\1[^>]*>([\s\S]*?)<\/script>/gi, (block, _quote, raw) => {
+    let data;
+    try { data = JSON.parse(raw.trim()); } catch { return block; }
+    const items = Array.isArray(data) ? data : [data];
+    let changed = false;
+    for (const item of items) {
+      if (item && typeof item === "object" && item["@type"] === "SoftwareApplication") {
+        item.description = description;
+        delete item.offers;
+        delete item.alternateName;
+        changed = true;
+      }
+    }
+    if (!changed) return block;
+    const value = Array.isArray(data) ? items : items[0];
+    return `<script type="application/ld+json">${JSON.stringify(value).replace(/</g, "\\u003c")}</script>`;
+  });
+}
+
 function syncSocialMeta(html, title, description) {
   let next = setTitle(html, title);
   next = setNamedMeta(next, "description", description);
@@ -59,6 +79,7 @@ changed += updateFile("features.html", (html) => {
   let next = syncSocialMeta(html, title, description);
   next = next.replace(/<h1>[^<]*<\/h1>/i, `<h1>${title}</h1>`);
   next = next.replace(/BLAZIN IPTV Player features for Windows IPTV, IPTV app, IPTV stream player and IPTV player for PC searches\./gi, description);
+  next = syncSoftwareDescription(next, description);
   return next;
 });
 
@@ -70,6 +91,7 @@ changed += updateFile("download.html", (html) => {
   next = next.replace(/Install the IPTV download from the Microsoft Store and test BLAZIN IPTV Player with your own legal M3U, Xtream Codes, STB MAC or Stalker Portal source\./i,
     "Install BLAZIN IPTV Player from the Microsoft Store and test it with your own legal M3U, Xtream Codes, STB MAC, or Stalker Portal source.");
   next = next.replace(/<section class="section"><div class="container"><p class="kicker">Related Windows IPTV Guides<\/p>[\s\S]*?<\/section>/i, related);
+  next = syncSoftwareDescription(next, description);
   return next;
 });
 
