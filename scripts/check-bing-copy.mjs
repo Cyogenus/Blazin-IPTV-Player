@@ -38,6 +38,19 @@ for (const url of urls) {
 
   if (/Related Windows IPTV Guides/i.test(html)) errors.push(`${file}: old bulk related-links section remains`);
   if ((html.match(/Review this related BLAZIN guide/gi) ?? []).length) errors.push(`${file}: repeated generic related-page copy remains`);
+
+  const metaDescription = html.match(/<meta\b(?=[^>]*\bname\s*=\s*(["'])description\1)[^>]*\bcontent\s*=\s*(["'])(.*?)\2[^>]*>/i)?.[3] ?? "";
+  for (const match of html.matchAll(/<script\b[^>]*type\s*=\s*(["'])application\/ld\+json\1[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let data;
+    try { data = JSON.parse(match[2].trim()); } catch { continue; }
+    const items = Array.isArray(data) ? data : [data];
+    for (const item of items) {
+      if (item?.["@type"] !== "SoftwareApplication") continue;
+      if (item.description !== metaDescription) errors.push(`${file}: SoftwareApplication description does not match the page description`);
+      if ("offers" in item) errors.push(`${file}: SoftwareApplication contains a hard-coded offer`);
+      if ("alternateName" in item) errors.push(`${file}: SoftwareApplication contains generic alternate names`);
+    }
+  }
 }
 
 if (errors.length) {
