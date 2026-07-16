@@ -1,0 +1,45 @@
+name: Fix Meta Descriptions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**/*.html"
+      - "scripts/fix-meta-descriptions.mjs"
+      - "scripts/check-meta-descriptions.mjs"
+      - ".github/workflows/fix-meta-descriptions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize and add meta descriptions
+        run: node scripts/fix-meta-descriptions.mjs
+
+      - name: Validate meta descriptions
+        run: node scripts/check-meta-descriptions.mjs
+
+      - name: Commit repaired HTML files
+        shell: bash
+        run: |
+          if git diff --quiet -- docs; then
+            echo "No HTML metadata changes were required."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Fix missing meta descriptions [skip ci]"
+          git push
