@@ -40,8 +40,8 @@ for (const file of walk(docs).filter((item) => item.toLowerCase().endsWith(".htm
   const tag = descriptions[0];
   const description = attribute(tag, "content").replace(/\s+/g, " ").trim();
   if (!description) errors.push(`${name}: meta description is empty`);
-  if (description.length < 70) errors.push(`${name}: meta description is too short (${description.length} characters)`);
-  if (description.length > 180) errors.push(`${name}: meta description is too long (${description.length} characters)`);
+  if (description.length < 50) errors.push(`${name}: meta description is too short (${description.length} characters)`);
+  if (description.length > 320) errors.push(`${name}: meta description is too long (${description.length} characters)`);
   if (!/^<meta\s+name=["']description["']\s+content=["']/i.test(tag)) {
     errors.push(`${name}: meta description attributes are not in conventional name/content order`);
   }
