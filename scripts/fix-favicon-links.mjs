@@ -4,13 +4,19 @@ import { join, resolve } from "node:path";
 const docs = resolve(new URL("../docs/", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
 const pngPath = join(docs, "assets", "favicon.png");
 const icoPath = join(docs, "assets", "favicon.ico");
+const applePath = join(docs, "apple-touch-icon.png");
 
 if (!existsSync(pngPath)) throw new Error("Missing docs/assets/favicon.png");
 if (!existsSync(icoPath)) throw new Error("Missing docs/assets/favicon.ico");
+if (!existsSync(applePath)) throw new Error("Missing docs/apple-touch-icon.png");
 
+// Use absolute, crawlable URLs so favicon discovery is unambiguous for Google,
+// Bing (and Yahoo), DuckDuckGo, Yandex, browsers, and other crawlers.
 const faviconLinks = [
-  '<link rel="icon" href="/assets/favicon.png" type="image/png" sizes="64x64">',
-  '<link rel="icon" href="/assets/favicon.ico" type="image/x-icon" sizes="any">'
+  '<link rel="icon" href="https://windowsiptv.com/assets/favicon.ico" sizes="any">',
+  '<link rel="icon" href="https://windowsiptv.com/assets/favicon.png" type="image/png" sizes="64x64">',
+  '<link rel="shortcut icon" href="https://windowsiptv.com/assets/favicon.ico">',
+  '<link rel="apple-touch-icon" href="https://windowsiptv.com/apple-touch-icon.png">'
 ].join("");
 
 function walk(dir) {
@@ -38,7 +44,7 @@ for (const file of walk(docs).filter((item) => item.toLowerCase().endsWith(".htm
   checked += 1;
   let next = html.replace(/<link\b[^>]*>/gi, (tag) => {
     const rel = relValue(tag);
-    return rel === "icon" || rel === "shortcut icon" ? "" : tag;
+    return rel === "icon" || rel === "shortcut icon" || rel === "apple-touch-icon" ? "" : tag;
   });
   next = next.replace(/<\/head>/i, `${faviconLinks}</head>`);
 
