@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 
 const docs = resolve(new URL("../docs/", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
 const files = ["index.html", "features.html", "screenshots.html"];
-const cacheVersion = "1170-tv4";
+const cacheVersion = "1170-tv5";
 const tvImages = [
-  { name: "tv-mode-live-tv-epg.webp", width: 640 },
+  { name: "tv-mode-live-tv-epg-v2.webp", width: 640 },
   { name: "tv-mode-movies.webp", width: 560 },
   { name: "tv-mode-series.webp", width: 560 }
 ];
@@ -22,7 +22,6 @@ function stabilizeImageTag(tag, name) {
   next = next.replace(/\s+loading=(["'])lazy\1/gi, "");
   next = next.replace(/\s+decoding=(["'])[^"']*\1/gi, "");
   next = next.replace(/\s+style=(["'])[^"']*\1/gi, "");
-
   next = next.replace(/^<img\b/i, `<img loading="eager" decoding="async" style="${stableImageStyle}"`);
   return next;
 }
@@ -32,7 +31,8 @@ let changed = 0;
 for (const file of files) {
   const path = resolve(docs, file);
   const original = readFileSync(path, "utf8");
-  let html = original;
+  let html = original
+    .replace(/screenshots\/tv-mode-live-tv-epg\.webp(?:\?[^"']*)?/gi, "screenshots/tv-mode-live-tv-epg-v2.webp");
 
   for (const image of tvImages) {
     const escapedName = escapeRegex(image.name);
