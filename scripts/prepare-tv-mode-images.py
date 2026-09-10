@@ -1,19 +1,19 @@
 from pathlib import Path
-from PIL import Image
+import base64
 
 ROOT = Path(__file__).resolve().parents[1]
 SCREENSHOTS = ROOT / "docs" / "screenshots"
-
-IMAGES = (
-    ("tv-mode-live-tv-epg.webp", "tv-mode-live-tv-epg.jpg"),
-    ("tv-mode-movies.webp", "tv-mode-movies.jpg"),
-    ("tv-mode-series.webp", "tv-mode-series.jpg"),
+PARTS = (
+    ROOT / "scripts" / "tv-live-part1.txt",
+    ROOT / "scripts" / "tv-live-part2.txt",
 )
+OUTPUT = SCREENSHOTS / "tv-mode-live-tv-epg.webp"
 
-for source_name, output_name in IMAGES:
-    source = SCREENSHOTS / source_name
-    output = SCREENSHOTS / output_name
-    with Image.open(source) as image:
-        image = image.convert("RGB")
-        image.save(output, "JPEG", quality=92, optimize=True, progressive=True)
-        print(f"Prepared {output_name}: {image.width}x{image.height}")
+encoded = "".join(part.read_text(encoding="utf-8").strip() for part in PARTS)
+data = base64.b64decode(encoded, validate=True)
+
+if not (data.startswith(b"RIFF") and data[8:12] == b"WEBP"):
+    raise RuntimeError("Reconstructed TV Mode Live image is not a valid WebP container")
+
+OUTPUT.write_bytes(data)
+print(f"Repaired {OUTPUT.name}: {len(data)} bytes")
