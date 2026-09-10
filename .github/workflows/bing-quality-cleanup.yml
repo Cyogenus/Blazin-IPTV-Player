@@ -7,6 +7,7 @@ on:
     paths:
       - "docs/**"
       - "scripts/fix-bing-quality-issues.mjs"
+      - "scripts/stabilize-tv-mode-images.mjs"
       - "scripts/check-seo-pages.mjs"
       - "scripts/generate-seo-pages.mjs"
       - ".github/workflows/bing-quality-cleanup.yml"
@@ -28,11 +29,15 @@ jobs:
       - name: Check scripts
         run: |
           node --check scripts/fix-bing-quality-issues.mjs
+          node --check scripts/stabilize-tv-mode-images.mjs
           node --check scripts/check-seo-pages.mjs
           node --check scripts/generate-seo-pages.mjs
 
       - name: Consolidate and sanitize website pages
         run: node scripts/fix-bing-quality-issues.mjs
+
+      - name: Stabilize TV Mode screenshots
+        run: node scripts/stabilize-tv-mode-images.mjs
 
       - name: Run Bing quality audit
         run: node scripts/check-seo-pages.mjs
