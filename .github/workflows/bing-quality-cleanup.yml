@@ -8,6 +8,7 @@ on:
       - "docs/**"
       - "scripts/fix-bing-quality-issues.mjs"
       - "scripts/stabilize-tv-mode-images.mjs"
+      - "scripts/prepare-tv-mode-images.py"
       - "scripts/check-seo-pages.mjs"
       - "scripts/generate-seo-pages.mjs"
       - ".github/workflows/bing-quality-cleanup.yml"
@@ -32,6 +33,13 @@ jobs:
           node --check scripts/stabilize-tv-mode-images.mjs
           node --check scripts/check-seo-pages.mjs
           node --check scripts/generate-seo-pages.mjs
+          python -m py_compile scripts/prepare-tv-mode-images.py
+
+      - name: Install image compatibility support
+        run: python -m pip install --disable-pip-version-check --quiet pillow
+
+      - name: Create browser-compatible TV Mode images
+        run: python scripts/prepare-tv-mode-images.py
 
       - name: Consolidate and sanitize website pages
         run: node scripts/fix-bing-quality-issues.mjs
