@@ -9,6 +9,7 @@ on:
       - "scripts/fix-bing-quality-issues.mjs"
       - "scripts/stabilize-tv-mode-images.mjs"
       - "scripts/prepare-tv-mode-images.py"
+      - "scripts/update-tv-mode-user-guide.mjs"
       - "scripts/tv-live-part1.txt"
       - "scripts/tv-live-part2.txt"
       - "scripts/check-seo-pages.mjs"
@@ -33,6 +34,7 @@ jobs:
         run: |
           node --check scripts/fix-bing-quality-issues.mjs
           node --check scripts/stabilize-tv-mode-images.mjs
+          node --check scripts/update-tv-mode-user-guide.mjs
           node --check scripts/check-seo-pages.mjs
           node --check scripts/generate-seo-pages.mjs
           python -m py_compile scripts/prepare-tv-mode-images.py
@@ -42,6 +44,9 @@ jobs:
 
       - name: Consolidate and sanitize website pages
         run: node scripts/fix-bing-quality-issues.mjs
+
+      - name: Update TV Mode user guide
+        run: node scripts/update-tv-mode-user-guide.mjs
 
       - name: Stabilize TV Mode screenshots
         run: node scripts/stabilize-tv-mode-images.mjs
