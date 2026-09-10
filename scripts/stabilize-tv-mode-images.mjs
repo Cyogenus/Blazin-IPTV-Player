@@ -19,7 +19,7 @@ function stabilizeImageTag(tag, name) {
   const pathPattern = new RegExp(`screenshots/${escapeRegex(name)}(?:\\?[^\"']*)?`, "i");
   let next = tag.replace(pathPattern, `screenshots/${name}?v=${cacheVersion}`);
 
-  next = next.replace(/\s+loading=(["'])lazy\1/gi, "");
+  next = next.replace(/\s+loading=(["'])[^"']*\1/gi, "");
   next = next.replace(/\s+decoding=(["'])[^"']*\1/gi, "");
   next = next.replace(/\s+style=(["'])[^"']*\1/gi, "");
   next = next.replace(/^<img\b/i, `<img loading="eager" decoding="async" style="${stableImageStyle}"`);
