@@ -1,4 +1,4 @@
-name: Store Screenshot Probe
+name: Install Sharp TV Mode Screenshots
 
 on:
   push:
@@ -11,16 +11,15 @@ permissions:
   contents: write
 
 jobs:
-  probe:
+  install:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Inspect Microsoft Store TV Mode images
+      - name: Download exact Microsoft Store TV Mode screenshots
         shell: python
         run: |
-          import hashlib
           import json
           import urllib.request
           from pathlib import Path
@@ -31,44 +30,37 @@ jobs:
               data = json.load(response)
 
           targets = {
-              "TV Mode — Live TV + EPG",
-              "TV Mode — Movies",
-              "TV Mode — Series",
+              "TV Mode — Live TV + EPG": "tv-mode-live-tv-epg-v3.jpg",
+              "TV Mode — Movies": "tv-mode-movies-v2.jpg",
+              "TV Mode — Series": "tv-mode-series-v2.jpg",
           }
-          records = []
-          for image in data.get("Payload", {}).get("Images", []):
-              if image.get("Caption") not in targets:
-                  continue
+          images = {img.get("Caption"): img for img in data.get("Payload", {}).get("Images", [])}
+          out_dir = Path("docs/screenshots")
+          out_dir.mkdir(parents=True, exist_ok=True)
+
+          for caption, filename in targets.items():
+              image = images.get(caption)
+              if not image:
+                  raise RuntimeError(f"Microsoft Store screenshot not found: {caption}")
               image_url = image.get("Url")
               req = urllib.request.Request(image_url, headers={"User-Agent": "Mozilla/5.0"})
               with urllib.request.urlopen(req, timeout=30) as response:
                   raw = response.read()
-                  content_type = response.headers.get("Content-Type")
-              records.append({
-                  "caption": image.get("Caption"),
-                  "position": image.get("ImagePositionInfo"),
-                  "width": image.get("Width"),
-                  "height": image.get("Height"),
-                  "url": image_url,
-                  "content_type": content_type,
-                  "byte_length": len(raw),
-                  "sha256": hashlib.sha256(raw).hexdigest(),
-                  "magic_hex": raw[:16].hex(),
-              })
-
-          Path("scripts/store-screenshot-metadata.json").write_text(
-              json.dumps(records, indent=2, ensure_ascii=False) + "\n",
-              encoding="utf-8",
-          )
-          print(json.dumps(records, indent=2, ensure_ascii=False))
-      - name: Commit metadata
+                  content_type = (response.headers.get("Content-Type") or "").lower()
+              if content_type != "image/jpeg" or not raw.startswith(b"\xff\xd8\xff"):
+                  raise RuntimeError(f"Unexpected image format for {caption}: {content_type}")
+              output = out_dir / filename
+              output.write_bytes(raw)
+              print(f"Downloaded {caption}: {image.get('Width')}x{image.get('Height')} -> {output} ({len(raw)} bytes)")
+      - name: Commit sharp TV Mode screenshots
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scripts/store-screenshot-metadata.json
+          git add docs/screenshots/tv-mode-live-tv-epg-v3.jpg docs/screenshots/tv-mode-movies-v2.jpg docs/screenshots/tv-mode-series-v2.jpg
           if git diff --cached --quiet; then
+            echo "Sharp TV Mode screenshots are already current."
             exit 0
           fi
-          git commit -m "Inspect Microsoft Store TV Mode screenshots [skip ci]"
+          git commit -m "Add full-resolution TV Mode screenshots [skip ci]"
           git push
