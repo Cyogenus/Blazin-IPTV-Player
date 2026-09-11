@@ -1,0 +1,77 @@
+name: Store Screenshot Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/store-screenshot-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Read Microsoft Store screenshot metadata
+        shell: python
+        run: |
+          import json
+          import urllib.request
+          from pathlib import Path
+
+          url = "https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/9NQ5S0FFCN8T?market=US&locale=en-us&deviceFamily=Windows.Desktop"
+          req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+          with urllib.request.urlopen(req, timeout=30) as response:
+              data = json.load(response)
+
+          found = []
+          def walk(value):
+              if isinstance(value, dict):
+                  if "ImagePurpose" in value and "Uri" in value:
+                      purpose = str(value.get("ImagePurpose") or "")
+                      if purpose.lower() in {"screenshot", "imagegallery"}:
+                          found.append({
+                              "purpose": purpose,
+                              "width": value.get("Width"),
+                              "height": value.get("Height"),
+                              "caption": value.get("Caption"),
+                              "uri": value.get("Uri"),
+                          })
+                  for child in value.values():
+                      walk(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      walk(child)
+          walk(data)
+
+          unique = []
+          seen = set()
+          for item in found:
+              key = item.get("uri")
+              if not key or key in seen:
+                  continue
+              seen.add(key)
+              item["index"] = len(unique)
+              unique.append(item)
+
+          Path("scripts/store-screenshot-metadata.json").write_text(
+              json.dumps(unique, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(unique, indent=2, ensure_ascii=False))
+      - name: Commit metadata
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/store-screenshot-metadata.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Probe Microsoft Store screenshot metadata [skip ci]"
+          git push
