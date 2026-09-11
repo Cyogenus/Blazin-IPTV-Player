@@ -15,7 +15,7 @@ const tvModeGuide = `${startMarker}
 <p class="lead">TV Mode gives BLAZIN IPTV Player a large-screen interface for Live TV, Movies, and Series. It is designed for TVs, large monitors, mini PCs, and couch-style keyboard or remote navigation while continuing to use the profiles and legal sources you add to the desktop app.</p>
 
 <div class="screenshot-card" style="margin:24px auto;max-width:900px;">
-<img loading="lazy" decoding="async" src="screenshots/tv-mode-live-tv-epg-v2.webp?v=1170-tv5" alt="BLAZIN IPTV Player TV Mode showing Live TV and EPG" style="display:block;width:100%;height:auto;object-fit:contain;"/>
+<img loading="lazy" decoding="async" src="screenshots/tv-mode-live-tv-epg-v3.jpg?v=1170-tv6" alt="BLAZIN IPTV Player TV Mode showing Live TV and EPG" style="display:block;width:100%;height:auto;object-fit:contain;"/>
 <div class="caption"><h3>TV Mode — Live TV + EPG</h3><p>Browse categories and channels on the left, view the selected channel and program information, and use the EPG timeline when guide data is supplied by your source.</p></div>
 </div>
 
