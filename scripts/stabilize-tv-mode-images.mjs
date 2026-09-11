@@ -2,12 +2,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const docs = resolve(new URL("../docs/", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
-const files = ["index.html", "features.html", "screenshots.html"];
-const cacheVersion = "1170-tv5";
+const files = ["index.html", "features.html", "screenshots.html", "user-guide.html"];
+const cacheVersion = "1170-tv6";
 const tvImages = [
-  { name: "tv-mode-live-tv-epg-v2.webp" },
-  { name: "tv-mode-movies.webp" },
-  { name: "tv-mode-series.webp" }
+  { name: "tv-mode-live-tv-epg-v3.jpg" },
+  { name: "tv-mode-movies-v2.jpg" },
+  { name: "tv-mode-series-v2.jpg" }
 ];
 const stableImageStyle = "display:block;width:100%;max-width:100%;height:auto;object-fit:contain;aspect-ratio:auto;margin-left:auto;margin-right:auto;";
 
@@ -32,7 +32,9 @@ for (const file of files) {
   const path = resolve(docs, file);
   const original = readFileSync(path, "utf8");
   let html = original
-    .replace(/screenshots\/tv-mode-live-tv-epg\.webp(?:\?[^"']*)?/gi, "screenshots/tv-mode-live-tv-epg-v2.webp");
+    .replace(/screenshots\/tv-mode-live-tv-epg(?:-v2)?\.webp(?:\?[^"']*)?/gi, "screenshots/tv-mode-live-tv-epg-v3.jpg")
+    .replace(/screenshots\/tv-mode-movies\.webp(?:\?[^"']*)?/gi, "screenshots/tv-mode-movies-v2.jpg")
+    .replace(/screenshots\/tv-mode-series\.webp(?:\?[^"']*)?/gi, "screenshots/tv-mode-series-v2.jpg");
 
   for (const image of tvImages) {
     const escapedName = escapeRegex(image.name);
