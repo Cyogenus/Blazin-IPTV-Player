@@ -5,9 +5,9 @@ const docs = resolve(new URL("../docs/", import.meta.url).pathname.replace(/^\/(
 const files = ["index.html", "features.html", "screenshots.html"];
 const cacheVersion = "1170-tv5";
 const tvImages = [
-  { name: "tv-mode-live-tv-epg-v2.webp", width: 640 },
-  { name: "tv-mode-movies.webp", width: 560 },
-  { name: "tv-mode-series.webp", width: 560 }
+  { name: "tv-mode-live-tv-epg-v2.webp" },
+  { name: "tv-mode-movies.webp" },
+  { name: "tv-mode-series.webp" }
 ];
 const stableImageStyle = "display:block;width:100%;max-width:100%;height:auto;object-fit:contain;aspect-ratio:auto;margin-left:auto;margin-right:auto;";
 
@@ -41,10 +41,7 @@ for (const file of files) {
 
     if (file === "screenshots.html") {
       const cardPattern = new RegExp(`<div\\s+class=(["'])screenshot-card\\1[^>]*>(?=\\s*<img\\b[^>]*\\bsrc=(["'])screenshots/${escapedName}(?:\\?[^"']*)?\\2)`, "gi");
-      html = html.replace(
-        cardPattern,
-        `<div class="screenshot-card" style="width:100%;max-width:${image.width}px;margin-left:auto;margin-right:auto;">`
-      );
+      html = html.replace(cardPattern, `<div class="screenshot-card">`);
     }
   }
 
