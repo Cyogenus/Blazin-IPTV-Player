@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Read Microsoft Store screenshot metadata
+      - name: Read Microsoft Store image metadata
         shell: python
         run: |
           import json
@@ -29,41 +29,37 @@ jobs:
           with urllib.request.urlopen(req, timeout=30) as response:
               data = json.load(response)
 
-          found = []
-          def walk(value):
+          records = []
+          def walk(value, path="root"):
               if isinstance(value, dict):
-                  if "ImagePurpose" in value and "Uri" in value:
-                      purpose = str(value.get("ImagePurpose") or "")
-                      if purpose.lower() in {"screenshot", "imagegallery"}:
-                          found.append({
-                              "purpose": purpose,
-                              "width": value.get("Width"),
-                              "height": value.get("Height"),
-                              "caption": value.get("Caption"),
-                              "uri": value.get("Uri"),
-                          })
-                  for child in value.values():
-                      walk(child)
+                  lowered = {str(k).lower(): k for k in value}
+                  url_keys = [k for lk, k in lowered.items() if "uri" in lk or "url" in lk]
+                  has_url = any(isinstance(value.get(k), str) and ("//" in value.get(k) or value.get(k).startswith("http")) for k in url_keys)
+                  interesting = any(any(word in lk for word in ("image", "purpose", "width", "height", "caption")) for lk in lowered)
+                  if has_url and interesting:
+                      slim = {"path": path, "keys": list(value.keys())}
+                      for k, v in value.items():
+                          lk = str(k).lower()
+                          if isinstance(v, (str, int, float, bool, type(None))) and any(word in lk for word in ("uri", "url", "image", "purpose", "width", "height", "caption")):
+                              slim[k] = v
+                      records.append(slim)
+                  for k, child in value.items():
+                      walk(child, f"{path}.{k}")
               elif isinstance(value, list):
-                  for child in value:
-                      walk(child)
+                  for i, child in enumerate(value):
+                      walk(child, f"{path}[{i}]")
           walk(data)
 
-          unique = []
-          seen = set()
-          for item in found:
-              key = item.get("uri")
-              if not key or key in seen:
-                  continue
-              seen.add(key)
-              item["index"] = len(unique)
-              unique.append(item)
-
+          probe = {
+              "top_level_keys": list(data.keys()) if isinstance(data, dict) else None,
+              "payload_keys": list(data.get("Payload", {}).keys()) if isinstance(data, dict) and isinstance(data.get("Payload"), dict) else None,
+              "records": records,
+          }
           Path("scripts/store-screenshot-metadata.json").write_text(
-              json.dumps(unique, indent=2, ensure_ascii=False) + "\n",
+              json.dumps(probe, indent=2, ensure_ascii=False) + "\n",
               encoding="utf-8",
           )
-          print(json.dumps(unique, indent=2, ensure_ascii=False))
+          print(json.dumps(probe, indent=2, ensure_ascii=False))
       - name: Commit metadata
         shell: bash
         run: |
@@ -73,5 +69,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "Probe Microsoft Store screenshot metadata [skip ci]"
+          git commit -m "Probe Microsoft Store image metadata [skip ci]"
           git push
