@@ -18,7 +18,7 @@ Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**
 
 <img width="2545" height="1329" alt="BLAZIN IPTV Player" src="https://github.com/user-attachments/assets/9201c9d1-13b6-4939-8cf6-7b03c96ae9f4" />
 
-## New in Version 1.1.7.0
+## New in Version 1.1.15.0
 
 BLAZIN IPTV Player now gives you **two ways to use the player**: the compact Windows desktop interface and the new **TV Mode** for a larger living-room-style experience.
 
