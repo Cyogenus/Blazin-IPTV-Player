@@ -4,7 +4,7 @@
 
 Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**, or **M3U playlist URLs**, BLAZIN IPTV Player brings your legal user-provided IPTV sources together in one Windows player.
 
-> **Version 1.1.7.0 is now available on the Microsoft Store with a free 7-day trial.**
+> **Version 1.1.15.0 is now available on the Microsoft Store with a free 7-day trial.**
 >
 > [Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website)
 
