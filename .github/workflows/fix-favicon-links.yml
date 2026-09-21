@@ -1,5 +1,9 @@
 name: Fix Search Favicon Links
 
+concurrency:
+  group: blazin-website-maintenance
+  cancel-in-progress: false
+
 on:
   push:
     branches:

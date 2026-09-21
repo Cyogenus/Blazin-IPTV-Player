@@ -1,5 +1,9 @@
 name: Fix Meta Descriptions
 
+concurrency:
+  group: blazin-website-maintenance
+  cancel-in-progress: false
+
 on:
   push:
     branches:
