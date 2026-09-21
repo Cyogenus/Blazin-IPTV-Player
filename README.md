@@ -181,7 +181,7 @@ https://github.com/user-attachments/assets/f7ac2cfc-6625-43c4-97ab-c15eec476857
 
 ## Download from Microsoft Store
 
-BLAZIN IPTV Player **1.1.7.0** is available on the Microsoft Store with a **free 7-day trial**.
+BLAZIN IPTV Player **1.1.18.0** is available on the Microsoft Store with a **free 7-day trial**.
 
 [Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_website)
 
