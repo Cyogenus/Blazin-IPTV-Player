@@ -1,7 +1,7 @@
-name: Bing Quality Cleanup
+name: Website SEO Maintenance
 
 concurrency:
-  group: blazin-website-maintenance
+  group: blazin-website-maintenance-auto
   cancel-in-progress: false
 
 on:
@@ -11,11 +11,15 @@ on:
     paths:
       - "docs/**"
       - "scripts/fix-bing-quality-issues.mjs"
+      - "scripts/fix-meta-descriptions.mjs"
+      - "scripts/check-meta-descriptions.mjs"
+      - "scripts/polish-bing-copy.mjs"
+      - "scripts/check-bing-copy.mjs"
+      - "scripts/fix-favicon-links.mjs"
+      - "scripts/check-favicon-links.mjs"
       - "scripts/stabilize-tv-mode-images.mjs"
       - "scripts/prepare-tv-mode-images.py"
       - "scripts/update-tv-mode-user-guide.mjs"
-      - "scripts/tv-live-part1.txt"
-      - "scripts/tv-live-part2.txt"
       - "scripts/check-seo-pages.mjs"
       - "scripts/generate-seo-pages.mjs"
       - ".github/workflows/bing-quality-cleanup.yml"
@@ -25,7 +29,7 @@ permissions:
   contents: write
 
 jobs:
-  cleanup:
+  maintain:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -34,14 +38,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check scripts
+      - name: Validate maintenance scripts
         run: |
+          node --check scripts/fix-meta-descriptions.mjs
+          node --check scripts/check-meta-descriptions.mjs
+          node --check scripts/polish-bing-copy.mjs
+          node --check scripts/check-bing-copy.mjs
+          node --check scripts/fix-favicon-links.mjs
+          node --check scripts/check-favicon-links.mjs
           node --check scripts/fix-bing-quality-issues.mjs
           node --check scripts/stabilize-tv-mode-images.mjs
           node --check scripts/update-tv-mode-user-guide.mjs
           node --check scripts/check-seo-pages.mjs
           node --check scripts/generate-seo-pages.mjs
           python -m py_compile scripts/prepare-tv-mode-images.py
+
+      - name: Normalize meta descriptions
+        run: node scripts/fix-meta-descriptions.mjs
+
+      - name: Polish preferred search copy
+        run: node scripts/polish-bing-copy.mjs
 
       - name: Restore TV Mode Live screenshot
         run: python scripts/prepare-tv-mode-images.py
@@ -55,10 +71,22 @@ jobs:
       - name: Stabilize TV Mode screenshots
         run: node scripts/stabilize-tv-mode-images.mjs
 
-      - name: Run Bing quality audit
+      - name: Add stable root favicon links
+        run: node scripts/fix-favicon-links.mjs
+
+      - name: Validate meta descriptions
+        run: node scripts/check-meta-descriptions.mjs
+
+      - name: Validate preferred-page copy
+        run: node scripts/check-bing-copy.mjs
+
+      - name: Validate favicon setup
+        run: node scripts/check-favicon-links.mjs
+
+      - name: Run SEO quality audit
         run: node scripts/check-seo-pages.mjs
 
-      - name: Commit reviewed website cleanup
+      - name: Commit website maintenance
         shell: bash
         run: |
           if git diff --quiet -- docs; then
@@ -68,5 +96,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs
-          git commit -m "Consolidate website for Bing quality compliance [skip ci]"
+          git commit -m "Maintain website SEO metadata and crawl signals [skip ci]"
           git push
