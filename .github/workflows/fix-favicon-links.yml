@@ -1,4 +1,4 @@
-name: Fix Favicon Links
+name: Fix Search Favicon Links
 
 on:
   push:
@@ -6,8 +6,9 @@ on:
       - main
     paths:
       - "docs/**/*.html"
-      - "docs/assets/favicon.png"
-      - "docs/assets/favicon.ico"
+      - "docs/favicon.ico"
+      - "docs/favicon-120x120.png"
+      - "docs/apple-touch-icon.png"
       - "scripts/fix-favicon-links.mjs"
       - "scripts/check-favicon-links.mjs"
       - ".github/workflows/fix-favicon-links.yml"
@@ -31,7 +32,7 @@ jobs:
           node --check scripts/fix-favicon-links.mjs
           node --check scripts/check-favicon-links.mjs
 
-      - name: Add stable favicon links
+      - name: Add stable root favicon links
         run: node scripts/fix-favicon-links.mjs
 
       - name: Validate favicon setup
@@ -47,5 +48,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs
-          git commit -m "Add Google Search favicon links [skip ci]"
+          git commit -m "Keep root search favicon links consistent [skip ci]"
           git push

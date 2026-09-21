@@ -2,20 +2,20 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const docs = resolve(new URL("../docs/", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
-const pngPath = join(docs, "assets", "favicon.png");
-const icoPath = join(docs, "assets", "favicon.ico");
+const icoPath = join(docs, "favicon.ico");
+const pngPath = join(docs, "favicon-120x120.png");
 const applePath = join(docs, "apple-touch-icon.png");
 
-if (!existsSync(pngPath)) throw new Error("Missing docs/assets/favicon.png");
-if (!existsSync(icoPath)) throw new Error("Missing docs/assets/favicon.ico");
+if (!existsSync(icoPath)) throw new Error("Missing docs/favicon.ico");
+if (!existsSync(pngPath)) throw new Error("Missing docs/favicon-120x120.png");
 if (!existsSync(applePath)) throw new Error("Missing docs/apple-touch-icon.png");
 
-// Use absolute, crawlable URLs so favicon discovery is unambiguous for Google,
-// Bing (and Yahoo), DuckDuckGo, Yandex, browsers, and other crawlers.
+// Keep the primary favicon in the site root. This is the most reliable
+// discovery path for Bing and is also the conventional browser fallback.
 const faviconLinks = [
-  '<link rel="icon" href="https://windowsiptv.com/assets/favicon.ico" sizes="any">',
-  '<link rel="icon" href="https://windowsiptv.com/assets/favicon.png" type="image/png" sizes="64x64">',
-  '<link rel="shortcut icon" href="https://windowsiptv.com/assets/favicon.ico">',
+  '<link rel="icon" href="https://windowsiptv.com/favicon.ico" type="image/x-icon" sizes="any">',
+  '<link rel="icon" href="https://windowsiptv.com/favicon-120x120.png" type="image/png" sizes="120x120">',
+  '<link rel="shortcut icon" href="https://windowsiptv.com/favicon.ico" type="image/x-icon">',
   '<link rel="apple-touch-icon" href="https://windowsiptv.com/apple-touch-icon.png">'
 ].join("");
 
