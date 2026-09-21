@@ -168,6 +168,9 @@ function sanitizeJsonLd(html, canonical, description, addSoftware) {
       downloadUrl: store,
       operatingSystem: "Windows 10, Windows 11",
       applicationCategory: "MultimediaApplication",
+      softwareVersion: "1.1.18.0",
+      dateModified: today,
+      image: `${site}/assets/app-icon.png`,
       description,
       publisher: {
         "@type": "Organization",
