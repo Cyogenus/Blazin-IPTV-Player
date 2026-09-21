@@ -39,7 +39,7 @@ TV Mode includes:
 
 ### Redesigned Internal Player
 
-Version 1.1.7.0 also introduces a redesigned compact internal player with an updated interface and improved playback experience.
+Version 1.1.18.0 also introduces a redesigned compact internal player with an updated interface and improved playback experience.
 
 New player improvements include:
 
