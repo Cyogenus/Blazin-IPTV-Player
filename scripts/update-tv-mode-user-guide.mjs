@@ -64,9 +64,9 @@ let html = readFileSync(guidePath, "utf8");
 const existingPattern = new RegExp(`${startMarker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${endMarker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
 html = html.replace(existingPattern, "");
 
-const relatedMarker = '<section class="section"><div class="container"><p class="kicker">Related Windows IPTV Guides</p>';
+const relatedMarker = '<section class="section"><div class="container"><p class="kicker">Source setup shortcuts</p>';
 if (!html.includes(relatedMarker)) {
-  throw new Error("Could not find the Related Windows IPTV Guides insertion point in docs/user-guide.html");
+  throw new Error("Could not find the Source setup shortcuts insertion point in docs/user-guide.html");
 }
 
 html = html.replace(relatedMarker, `${tvModeGuide}\n${relatedMarker}`);
