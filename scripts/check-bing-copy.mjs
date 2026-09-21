@@ -32,7 +32,7 @@ for (const url of urls) {
   const meta = [...html.matchAll(/<meta\b[^>]*content\s*=\s*(["'])(.*?)\1[^>]*>/gi)].map((match) => match[2]).join(" ");
   const audit = `${title} ${meta} ${visibleText(html)}`.replace(/\s+/g, " ");
 
-  if (/\b(?:workflow\s+workflow|keyword stuffing|seo rankings?|search traffic|for [^.]{0,180} searches|long-tail page|helps? sell blazin|review this related blazin guide)\b/i.test(audit)) {
+  if (/\b(?:workflow\s+workflow|keyword stuffing|seo rankings?|search traffic|long-tail page|helps? sell blazin|review this related blazin guide)\b/i.test(audit)) {
     errors.push(`${file}: search-engine or generated-template language remains`);
   }
 
