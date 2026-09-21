@@ -10,7 +10,7 @@ const pages = [
     title: "BLAZIN IPTV Player vs IPTVnator for Windows | Comparison",
     description: "Compare BLAZIN IPTV Player and IPTVnator for Windows, including M3U, Xtream Codes, Stalker, EPG, playback, favorites, and desktop workflow.",
     h1: "BLAZIN IPTV Player vs IPTVnator for Windows",
-    image: "blue-theme.png",
+    image: "blue-storm-theme.png",
     imageAlt: "BLAZIN IPTV Player desktop interface for an IPTVnator comparison",
     comparisonLabel: "IPTVnator",
     takeawayHeading: "Quick verdict: BLAZIN IPTV Player vs IPTVnator",
