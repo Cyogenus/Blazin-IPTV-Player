@@ -171,13 +171,7 @@ Instead of choosing between a compact desktop player and a large TV interface, B
 
 The app does not lock you into one login type, one playlist format, or one playback method.
 
----
 
-## Preview
-
-https://github.com/user-attachments/assets/f7ac2cfc-6625-43c4-97ab-c15eec476857
-
----
 
 ## Download from Microsoft Store
 
