@@ -8,7 +8,7 @@ Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**
 >
 > [Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_github)
 
-<a href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T?referrer=appbadge&mode=full&cid=Blazin_website" target="_blank" rel="noopener noreferrer">
+<a href="https://apps.microsoft.com/detail/9NQ5S0FFCN8T?referrer=appbadge&mode=full&cid=Blazin_github" target="_blank" rel="noopener noreferrer">
   <img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
 </a>
 
