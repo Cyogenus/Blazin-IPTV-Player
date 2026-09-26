@@ -4,7 +4,7 @@
 
 Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**, or **M3U playlist URLs**, BLAZIN IPTV Player brings your legal user-provided IPTV sources together in one Windows player.
 
-> **Version 1.1.18.0 is now available on the Microsoft Store with a free 7-day trial.**
+> **Version 1.1.19.0 is now available on the Microsoft Store with a free 7-day trial.**
 >
 > [Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_github)
 
@@ -18,43 +18,18 @@ Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**
 
 <img width="2545" height="1329" alt="BLAZIN IPTV Player" src="https://github.com/user-attachments/assets/9201c9d1-13b6-4939-8cf6-7b03c96ae9f4" />
 
-## New in Version 1.1.18.0
+## New in Version 1.1.19.0
 
-BLAZIN IPTV Player now gives you **two ways to use the player**: the compact Windows desktop interface and the new **TV Mode** for a larger living-room-style experience.
+Version 1.1.19.0 focuses on faster playlist loading, smoother category navigation, and more accurate loading feedback.
 
-### TV Mode Is Here
+### Playlist Loading & Navigation Improvements
 
-TV Mode is now included in BLAZIN IPTV Player. It provides a larger interface designed for TVs, big displays, mini PCs, and couch-style browsing while continuing to use the same profiles and supported source types as the desktop player.
-
-TV Mode includes:
-
-* Large-screen TV-style interface
-* Live TV, Movies, and Series browsing
-* EPG display for Live TV when supplied by the source
-* Channel logos and Movie/Series artwork when available
-* Categories, search, and favorites
-* Keyboard and remote-style navigation
-* Fullscreen playback
-* Large-playlist browsing designed for TV use
-
-### Redesigned Internal Player
-
-Version 1.1.18.0 also introduces a redesigned compact internal player with an updated interface and improved playback experience.
-
-New player improvements include:
-
-* Redesigned compact internal player interface
-* Background player loading to keep the main interface responsive
-* GPU-assisted playback support through VLC where supported by the system
-* Fullscreen channel-name marquee
-* Fullscreen **Up/Down Arrow** channel switching
-* Improved fullscreen controls
-* Better control alignment when resizing the player
-* New corner resize grips
-
-### Profile Manager Improvements
-
-The Profile Manager now also supports **playlist files**, making it easier to keep local M3U-based sources together with your other BLAZIN profiles.
+* Improved local M3U playlist file loading for faster and more reliable playlist handling
+* Improved M3U and M3U8 playlist URL loading
+* Faster category navigation for smoother browsing through large playlists
+* Improved playlist navigation and loading reliability for local and URL-based sources
+* Fixed and improved the progress bar so loading progress is displayed more accurately and consistently
+* Additional stability and performance improvements
 
 ---
 
@@ -175,7 +150,7 @@ The app does not lock you into one login type, one playlist format, or one playb
 
 ## Download from Microsoft Store
 
-BLAZIN IPTV Player **1.1.18.0** is available on the Microsoft Store with a **free 7-day trial**.
+BLAZIN IPTV Player **1.1.19.0** is available on the Microsoft Store with a **free 7-day trial**.
 
 [Download BLAZIN IPTV Player from the Microsoft Store](https://apps.microsoft.com/detail/9NQ5S0FFCN8T?cid=Blazin_github)
 
