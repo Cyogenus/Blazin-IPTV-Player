@@ -1,6 +1,6 @@
 # BLAZIN IPTV Player
 
-[![Repository Views](https://hits.sh/github.com/Cyogenus/Blazin-IPTV-Player.svg?style=flat-square&label=Repository%20Views)](https://github.com/Cyogenus/Blazin-IPTV-Player)
+[![GitHub Views](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FCyogenus%2FBlazin-IPTV-Player%2Fmain%2Ftraffic-badge.json)](https://github.com/Cyogenus/Blazin-IPTV-Player/graphs/traffic)
 
 **BLAZIN IPTV Player** is an all-in-one Windows IPTV player built for users who want speed, flexibility, a compact desktop experience, and a full TV-style interface in one app.
 
