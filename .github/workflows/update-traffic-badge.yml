@@ -1,0 +1,66 @@
+name: Update GitHub Traffic Badge
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-traffic-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Fetch GitHub traffic views
+        env:
+          TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+        run: |
+          if [ -z "$TRAFFIC_TOKEN" ]; then
+            echo "::error::Missing TRAFFIC_TOKEN repository secret."
+            exit 1
+          fi
+
+          curl --fail --silent --show-error \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TRAFFIC_TOKEN" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/Cyogenus/Blazin-IPTV-Player/traffic/views?per=day" \
+            > traffic.json
+
+          python - <<'PY'
+          import json
+
+          with open("traffic.json", "r", encoding="utf-8") as f:
+              traffic = json.load(f)
+
+          badge = {
+              "schemaVersion": 1,
+              "label": "GitHub views (14d)",
+              "message": str(traffic.get("count", 0)),
+              "color": "blue",
+              "cacheSeconds": 3600
+          }
+
+          with open("traffic-badge.json", "w", encoding="utf-8") as f:
+              json.dump(badge, f, separators=(",", ":"))
+              f.write("\n")
+          PY
+
+          rm -f traffic.json
+
+      - name: Commit updated badge data
+        run: |
+          if git diff --quiet -- traffic-badge.json; then
+            echo "Traffic badge is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add traffic-badge.json
+          git commit -m "Update GitHub traffic badge"
+          git push
