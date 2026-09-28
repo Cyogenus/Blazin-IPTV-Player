@@ -144,6 +144,16 @@ function sanitizeJsonLd(html, canonical, description, addSoftware) {
     for (const item of values) {
       if (!item || typeof item !== "object") continue;
       const type = item["@type"];
+      if (type === "Article") {
+        item.image ??= `${site}/screenshots/live-tv-playlist.png`;
+        for (const key of ["author", "publisher"]) {
+          const org = item[key];
+          if (org && typeof org === "object" && org["@type"] === "Organization") {
+            org.url ??= `${site}/`;
+            org.logo ??= `${site}/assets/app-icon.png`;
+          }
+        }
+      }
       if (type === "SoftwareApplication") continue;
       if (type === "FAQPage") {
         const entities = Array.isArray(item.mainEntity) ? item.mainEntity : [];
@@ -175,7 +185,8 @@ function sanitizeJsonLd(html, canonical, description, addSoftware) {
       publisher: {
         "@type": "Organization",
         name: "WindowsIPTV.com",
-        url: site
+        url: site,
+        logo: `${site}/assets/app-icon.png`
       }
     });
   }
