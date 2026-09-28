@@ -1,6 +1,6 @@
-# BLAZIN IPTV Player
+# BLAZIN IPTV Player for Windows
 
-**BLAZIN IPTV Player** is an all-in-one Windows IPTV player built for users who want speed, flexibility, a compact desktop experience, and a full TV-style interface in one app.
+**BLAZIN IPTV Player** is an all-in-one IPTV player for Windows supporting **Xtream Codes**, **Stalker Portal**, **MAG/STB MAC**, and **M3U playlists**, built for users who want speed, flexibility, a compact desktop experience, and a full TV-style interface in one app.
 
 Whether you use **Xtream Codes**, **STB MAC**, **Stalker Portal**, **M3U files**, or **M3U playlist URLs**, BLAZIN IPTV Player brings your legal user-provided IPTV sources together in one Windows player.
 
