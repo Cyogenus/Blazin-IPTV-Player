@@ -75,7 +75,7 @@ let changed = 0;
 
 changed += updateFile("features.html", (html) => {
   const title = "BLAZIN IPTV Player Features for Windows";
-  const description = "Explore BLAZIN IPTV Player features for Windows, including source profiles, categories, EPG, favorites, themes, internal playback, and external player options.";
+  const description = "Explore BLAZIN IPTV Player features for Windows: M3U, Xtream Codes, STB MAC, Stalker Portal, EPG, favorites, profiles, themes, and playback options.";
   let next = syncSocialMeta(html, title, description);
   next = next.replace(/<h1>[^<]*<\/h1>/i, `<h1>${title}</h1>`);
   next = next.replace(/BLAZIN IPTV Player features for Windows IPTV, IPTV app, IPTV stream player and IPTV player for PC searches\./gi, description);
@@ -85,7 +85,7 @@ changed += updateFile("features.html", (html) => {
 
 changed += updateFile("download.html", (html) => {
   const title = "Download BLAZIN IPTV Player for Windows | 7-Day Trial";
-  const description = "Download BLAZIN IPTV Player from the Microsoft Store and test your own legal M3U, Xtream Codes, STB MAC, or Stalker Portal source for 7 days.";
+  const description = "Get BLAZIN IPTV Player from the Microsoft Store. Test your own M3U, Xtream Codes, STB MAC, or Stalker Portal source on Windows with a 7-day free trial.";
   const related = `<section class="section"><div class="container"><p class="kicker">Related setup guides</p><h2>Continue with the source type you use</h2><div class="grid three"><article class="card"><h3><a href="/windows-iptv-player/">Windows IPTV Player</a></h3><p>Review the complete Windows workflow, supported source types, browsing tools, and playback options.</p></article><article class="card"><h3><a href="/m3u-player-windows/">M3U Player for Windows</a></h3><p>Learn how to load a local playlist file, remote M3U URL, or M3U Plus source.</p></article><article class="card"><h3><a href="/xtream-codes-player-windows/">Xtream Codes Player</a></h3><p>Use the server URL, username, and password supplied by your legal source.</p></article><article class="card"><h3><a href="/stb-mac-player-windows/">STB MAC Player</a></h3><p>Set up a compatible portal and MAC profile with optional compatibility controls.</p></article><article class="card"><h3><a href="/stalker-portal-player-windows/">Stalker Portal Player</a></h3><p>Configure an authorized portal profile and advanced fields only when required.</p></article><article class="card"><h3><a href="/epg-iptv-player-windows/">EPG and TV Guide</a></h3><p>Understand how source-provided program information appears in the Windows player.</p></article></div></div></section>`;
   let next = syncSocialMeta(html, title, description);
   next = next.replace(/Install the IPTV download from the Microsoft Store and test BLAZIN IPTV Player with your own legal M3U, Xtream Codes, STB MAC or Stalker Portal source\./i,
