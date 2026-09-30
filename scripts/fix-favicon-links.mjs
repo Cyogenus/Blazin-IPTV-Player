@@ -13,9 +13,7 @@ if (!existsSync(applePath)) throw new Error("Missing docs/apple-touch-icon.png")
 // Keep the primary favicon in the site root. This is the most reliable
 // discovery path for Bing and is also the conventional browser fallback.
 const faviconLinks = [
-  '<link rel="icon" href="https://windowsiptv.com/favicon.ico" type="image/x-icon" sizes="any">',
   '<link rel="icon" href="https://windowsiptv.com/favicon-120x120.png" type="image/png" sizes="120x120">',
-  '<link rel="shortcut icon" href="https://windowsiptv.com/favicon.ico" type="image/x-icon">',
   '<link rel="apple-touch-icon" href="https://windowsiptv.com/apple-touch-icon.png">'
 ].join("");
 
