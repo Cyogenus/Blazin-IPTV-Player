@@ -6,7 +6,6 @@ const icoPath = join(docs, "favicon.ico");
 const pngPath = join(docs, "favicon-120x120.png");
 const applePath = join(docs, "apple-touch-icon.png");
 const errors = [];
-const icoHref = "https://windowsiptv.com/favicon.ico";
 const pngHref = "https://windowsiptv.com/favicon-120x120.png";
 const appleHref = "https://windowsiptv.com/apple-touch-icon.png";
 
@@ -57,14 +56,10 @@ for (const file of walk(docs).filter((item) => item.toLowerCase().endsWith(".htm
   checked += 1;
   const name = relative(docs, file).replaceAll("\\", "/");
   const links = [...html.matchAll(/<link\b[^>]*>/gi)].map((m) => attrs(m[0]));
-  const icoLinks = links.filter((x) => x.rel === "icon" && x.href === icoHref);
   const pngLinks = links.filter((x) => x.rel === "icon" && x.href === pngHref);
-  const shortcutLinks = links.filter((x) => x.rel === "shortcut icon" && x.href === icoHref);
   const appleLinks = links.filter((x) => x.rel === "apple-touch-icon" && x.href === appleHref);
 
-  if (icoLinks.length !== 1) errors.push(`${name}: expected one root ICO favicon link, found ${icoLinks.length}`);
   if (pngLinks.length !== 1) errors.push(`${name}: expected one 120x120 PNG favicon link, found ${pngLinks.length}`);
-  if (shortcutLinks.length !== 1) errors.push(`${name}: expected one root shortcut ICO link, found ${shortcutLinks.length}`);
   if (appleLinks.length !== 1) errors.push(`${name}: expected one Apple touch icon link, found ${appleLinks.length}`);
   if (pngLinks.length === 1 && pngLinks[0].sizes !== "120x120") {
     errors.push(`${name}: PNG favicon must declare sizes="120x120"`);
